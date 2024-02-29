@@ -68,4 +68,6 @@ include("formconv/iv.jl")
 include("core/constraint_template.jl")
 include("io/multinetwork.jl")
 include("io/results.jl")
+
+include("sc/iv.jl")
 end
