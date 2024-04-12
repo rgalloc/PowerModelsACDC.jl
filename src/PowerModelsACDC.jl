@@ -44,6 +44,7 @@ include("core/base.jl")
 include("core/constraint.jl")
 include("core/objective.jl")
 include("core/relaxation_scheme.jl")
+include("core/process_supercoductor_links.jl")
 
 include("formdcgrid/acp.jl")
 include("formdcgrid/acr.jl")
