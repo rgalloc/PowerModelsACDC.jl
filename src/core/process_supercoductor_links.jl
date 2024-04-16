@@ -11,13 +11,13 @@ function process_superconductor_links!(data::Dict{String,Any})
 end
 
 # Function to add sc key to branchdc data
-function add_sc_links!(data::Dict{String,Any},sc_links::Dict{String,Any})
-    for branch_id in data["branchdc"]
-        print("$branch_id\n")
-        for i in sc_links["sc_branch"]
-            print("DC Branch ","$i"," is superconductor link\n")
+function add_sc_links(data::Dict{String,Any},sc_links::Vector{String})
+    for sc_link in sc_links
+        if haskey(data["branchdc"],sc_link)
+            sc_data[sc_link] = deepcopy(data["branchdc"][sc_link])
         end
     end
+    return sc_data
 end
 
 # This function calculate the cooling losses based on length
