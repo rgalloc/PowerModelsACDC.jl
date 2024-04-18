@@ -1,10 +1,10 @@
 ###################################################################
-#####   Code to test new function to add superconductor links #####
+#####   Code to test new functions to add superconductor links #####
 ###################################################################
 
 using PowerModels ; const _PM = PowerModels
 using PowerModelsACDC ; const _PMACDC = PowerModelsACDC
-using Gurobi
+#using Gurobi
 using Ipopt
 
 # Include new Functions
@@ -12,32 +12,39 @@ include("../../src/core/process_supercoductor_links.jl")
 
 # Add system data
 data = _PM.parse_file("test/data/superconductivity/case5_acdc.m")
+#data = _PM.parse_file("test/data/superconductivity/case5_acdc_sc.m") # New test case
 data_original = deepcopy(data)
 
-# Define superconductor links
-sc_links = ["1","2"] # Vector to state whihc dc branches are superconductor links
-sc_data = Dict{String,Any}() # Dict to save sc branches data
+nl_solver = Ipopt.Optimizer
 
-# for branch_id in data["branchdc"]
-#     print("$branch_id\n")
-#     for i in sc_links["sc_branch"]
-#         print("DC Branch ","$i"," is superconductor link\n")
-#     end
-# end
+# Define superconductor links
+sc_links = ["1"] # Vector to state whihc dc branches are superconductor links
+sc_data = Dict{String,Any}() # Dict to save sc branches data
 
 sc_data = add_sc_links(data,sc_links)
 
-# Copy data from dc branches into new dictionary
-for sc_link in sc_links
-    if haskey(data["branchdc"],sc_link)
-        print("DC branch ",sc_link," is a superconductor link\n")
-        sc_data[sc_link] = deepcopy(data["branchdc"][sc_link])
-    end
-end
+process_superconductor_links!(data,sc_data)
 
-convdc_sc = Dict{String,Any}
-for branch_index in sc_data
-    if sc_data[branch_index]["fbusdc"] == data["convdc"][branch_index]["busdc_i"] || sc_data[branch_index]["tbusdc"] == data["convdc"][branch_index]["busdc_i"]
-        convdc_sc = deepcopy(data["convdc"][branch_index])
-    end
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+_PMACDC.process_additional_data!(data)
+_PMACDC.process_additional_data!(data_original)
+result = _PMACDC.run_acdcopf(data,ACPPowerModel,nl_solver;setting = s)
+result_original = _PMACDC.run_acdcopf(data_original,ACPPowerModel,nl_solver;setting = s)
+result_2 = _PMACDC.run_acdcopf(data,ACPPowerModel,nl_solver;setting = s)
+
+print("-------------------------------------------------------\n")
+print("                  Optimization Results                 \n")
+print("-------------------------------------------------------\n")
+print("\n Case 1: No SC Branches : ",result_original["objective"], "\n")
+print("\n Case 2: 1  SC Branch   : ",result["objective"], "\n")
+print("\n Case 3: 2  SC Branches : ",result_2["objective"], "\n")
+
+##### Results ######
+# case5_acdc    = 194.139
+# case5_acdc_sc = 196.496  # No SC branches
+# case5_acdc_sc = 202.236 # 1 SC branch
+
+for (conv_id,conv_dc) in data["convdc"]
+    print("Converter: ","$conv_id"," dc bus is: ",conv_dc["busdc_i"],"\n")
 end
