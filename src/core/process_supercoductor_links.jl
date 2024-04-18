@@ -7,8 +7,14 @@
 
 function process_superconductor_links!(data::Dict{String,Any},sc_data::Dict{String,Any})
     # Extract dc buses of converter and join them
+    convdc_sc = Dict{String,Any}
+    for branch_index in sc_data
+        if sc_data[branch_index]["fbusdc"] == data["convdc"][branch_index]["busdc_i"] || sc_data[branch_index]["tbusdc"] == data["convdc"][branch_index]["busdc_i"]
+            convdc_sc = deepcopy(data["convdc"][branch_index])
+        end
+    end
     node_dc = sc_data["1"]["fbusdc"]
-    for 
+    #for 
     # Calculate the losses and add them to the ac buses of converter
     # for loop to eliminate the branches
 
