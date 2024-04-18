@@ -25,12 +25,19 @@ sc_data = Dict{String,Any}() # Dict to save sc branches data
 #     end
 # end
 
-sc_data_dict = add_sc_links(data,sc_links)
+sc_data = add_sc_links(data,sc_links)
 
 # Copy data from dc branches into new dictionary
 for sc_link in sc_links
     if haskey(data["branchdc"],sc_link)
         print("DC branch ",sc_link," is a superconductor link\n")
         sc_data[sc_link] = deepcopy(data["branchdc"][sc_link])
+    end
+end
+
+convdc_sc = Dict{String,Any}
+for branch_index in sc_data
+    if sc_data[branch_index]["fbusdc"] == data["convdc"][branch_index]["busdc_i"] || sc_data[branch_index]["tbusdc"] == data["convdc"][branch_index]["busdc_i"]
+        convdc_sc = deepcopy(data["convdc"][branch_index])
     end
 end
