@@ -12,7 +12,7 @@ function process_superconductor_links!(data::Dict{String,Any},sc_data::Dict{Stri
         for (conv_id,conv_dc) in data["convdc"]
             if conv_dc["busdc_i"] == branch_dc["fbusdc"] || conv_dc["busdc_i"] == branch_dc["tbusdc"]
                 conv_dc["busdc_i"] = branch_dc["fbusdc"] # Connect converter at both sides of sc branch to same dc busdc_i
-                for (load_id,load) in data["load"]
+                for (load_id,load) in data["load"] # Check with length of dict
                     if load["load_bus"] == conv_dc["busac_i"] # Update later to consider no previous load
                         load["pd"] = load["pd"] + branch_dc["p_loss"]/2 # Adds half the losses at each side of the converter
                         load["qd"] = load["qd"] + branch_dc["q_loss"]/2
@@ -27,6 +27,7 @@ end
 
 # Function to add sc key to branchdc data
 function add_sc_links(data::Dict{String,Any},sc_links::Vector{String})
+    sc_data = Dict{String,Any}() # Empy dict to save sc data
     for sc_link in sc_links
         if haskey(data["branchdc"],sc_link)
             sc_data[sc_link] = deepcopy(data["branchdc"][sc_link])

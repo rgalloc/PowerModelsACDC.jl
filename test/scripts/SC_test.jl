@@ -11,14 +11,14 @@ using Ipopt
 include("../../src/core/process_supercoductor_links.jl")
 
 # Add system data
-data = _PM.parse_file("test/data/superconductivity/case5_acdc.m")
-#data = _PM.parse_file("test/data/superconductivity/case5_acdc_sc.m") # New test case
+#data = _PM.parse_file("test/data/superconductivity/case5_acdc.m")
+data = _PM.parse_file("test/data/superconductivity/case5_acdc_sc.m") # New test case
 data_original = deepcopy(data)
 
 nl_solver = Ipopt.Optimizer
 
 # Define superconductor links
-sc_links = ["1"] # Vector to state whihc dc branches are superconductor links
+sc_links = ["1"] # Vector to state which dc branches are superconductor links
 sc_data = Dict{String,Any}() # Dict to save sc branches data
 
 sc_data = add_sc_links(data,sc_links)
@@ -45,6 +45,14 @@ print("\n Case 3: 2  SC Branches : ",result_2["objective"], "\n")
 # case5_acdc_sc = 196.496  # No SC branches
 # case5_acdc_sc = 202.236 # 1 SC branch
 
-for (conv_id,conv_dc) in data["convdc"]
-    print("Converter: ","$conv_id"," dc bus is: ",conv_dc["busdc_i"],"\n")
+using CSV
+
+data_list = []
+
+for (conv_id,convdc) in result["solution"]["convdc"]
+    for (param,value) in convdc
+        push!(data_list, (conv_id, param, value))
+    end
 end
+
+CSV.write("data.csv", data_list, header=["Entry","Parameter","value"])
