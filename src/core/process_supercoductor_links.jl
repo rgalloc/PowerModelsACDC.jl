@@ -13,19 +13,28 @@ function process_superconductor_links!(data::Dict{String,Any},sc_data::Dict{Stri
             if conv_dc["busdc_i"] == branch_dc["tbusdc"] #|| conv_dc["busdc_i"] == branch_dc["fbusdc"]
                 conv_dc["busdc_i"] = branch_dc["fbusdc"] # Connect converter at both sides of sc branch to same dc busdc_i
             end
-            if data["load"]
         end
 
         delete!(data["branchdc"],"$branch_id")
 
-        for (load_id,load) in data["load"] # Check with length of dict
-        # Create a new entry for the data["load"] dictionary
-            if load["load_bus"] == conv_dc["busac_i"]
-                load["pd"] = load["pd"] + branch_dc["p_aux"]/2 # Adds half the losses at each side of the converter
-                load["qd"] = load["qd"] + branch_dc["q_aux"]/2
-            end
+        length(collect(keys(data["load"])))
 
+        
+
+        for (load_id,load) in data["load"]
+            if haskey(load,"load_bus")
+                #print("AC bus is",load["load_bus"])
+            end
         end
+        # for (load_id,load) in data["load"] # Check with length of dict
+        # # Create a new entry for the data["load"] dictionary
+        #     if load["load_bus"] == conv_dc["busac_i"]
+        #         load["pd"] = load["pd"] + branch_dc["p_aux"]/2 # Adds half the aux losses at each side of the converter
+        #         load["qd"] = load["qd"] + branch_dc["q_aux"]/2
+        #     end
+        #     if 
+
+        # end
     end
 
     if haskey() # Check if there is a load connected to the converter ac bus
@@ -71,10 +80,10 @@ end
 function cooling_losses(length)
     p_losses = 0.005 # Losses equal to 500 kW per station and 1 station every 25 km
     pf = 0.85
-    losses = []
-    p_load = ceil((length/25))*p_losses
-    q_load = round(p_load*tan(acos(pf)),digits=3)
-    push!(losses,p_load) # Active power losses
-    push!(losses,q_load) # Reactive power losses
-    return losses # Vector with [p_losses,q_losses]
+    aux_losses = []
+    p_aux = ceil((length/25))*p_losses
+    q_aux = round(p_load*tan(acos(pf)),digits=3)
+    push!(losses,p_aux) # Active power losses
+    push!(losses,q_aux) # Reactive power losses
+    return aux_losses # Vector with [p_aux,q_aux]
 end
