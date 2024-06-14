@@ -44,10 +44,3 @@ print("\n Case 2: 1  SC Branch   : ",result["objective"], "\n")
 # case5_acdc    = 194.139
 # case5_acdc_sc = 196.496  # No SC branches
 # case5_acdc_sc = 202.236 # 1 SC branch
-
-for (conv_id,conv_dc) in data["convdc"]
-    print("Converter: ","$conv_id"," dc bus is: ",conv_dc["busdc_i"],"\n")
-end
-
-length = 200
-Losses = cooling_losses(length)[1]
