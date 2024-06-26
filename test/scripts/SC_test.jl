@@ -16,14 +16,17 @@ data = _PM.parse_file("test/data/superconductivity/case5_acdc_sc.m") # New test 
 data_original = deepcopy(data)
 
 nl_solver = Ipopt.Optimizer
+#nl_solver = Gurobi.Optimizer
 
 # Define superconductor links
 sc_links = ["1"] # Vector to state whihc dc branches are superconductor links
-sc_data = Dict{String,Any}() # Dict to save sc branches data
+#sc_data = Dict{String,Any}() # Dict to save sc branches data
 
-sc_data = add_sc_links!(data,sc_links)
+#sc_data = add_sc_links!(data,sc_links)
+#sc_data = add_sc_links_2!(data,sc_links)
+sc_data = add_sc_links_3!(data,sc_links)
 
-process_superconductor_links!(data,sc_data)
+process_superconductor_links2!(data)
 
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
 
@@ -38,9 +41,4 @@ print("                  Optimization Results                 \n")
 print("-------------------------------------------------------\n")
 print("\n Case 1: No SC Branches : ",result_original["objective"], "\n")
 print("\n Case 2: 1  SC Branch   : ",result["objective"], "\n")
-#print("\n Case 3: 2  SC Branches : ",result_2["objective"], "\n")
 
-##### Results ######
-# case5_acdc    = 194.139
-# case5_acdc_sc = 196.496  # No SC branches
-# case5_acdc_sc = 202.236 # 1 SC branch
