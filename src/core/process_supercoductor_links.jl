@@ -84,25 +84,6 @@ end
 # Creates sc_data dictionary with superconducting branches data
 # Merges sc_data with the grid data
 
-# function add_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
-    
-#     sc_data = Dict{String, Dict{String, Any}}() # Empty dict to save sc data
-
-#     # Loop through input to copy data from main dict
-#     for sc_link in sc_links
-#         if haskey(data["branchdc"],sc_link)
-#             sc_data["branchdc"][sc_link] = deepcopy(data["branchdc"][sc_link])
-
-#             sc_data["branchdc"][sc_link]["length"] = 200 # All sc branches 200 km, to modify later
-#             sc_data["branchdc"][sc_link]["p_aux"]  = cooling_losses(sc_data["branchdc"][sc_link]["length"])[1]
-#             sc_data["branchdc"][sc_link]["q_aux"]  = cooling_losses(sc_data["branchdc"][sc_link]["length"])[2]
-#             sc_data["branchdc"][sc_link]["sc"]     = true
-#         end
-#     end
-#     merge!(data["branchdc"],sc_data)
-#     return sc_data
-# end
-
 function add_sc_links_2!(data::Dict{String,Any},sc_links::Vector{String})
     sc_data = Dict{String,Any}() # Empy dict to save sc data
     for sc_link in sc_links
@@ -146,6 +127,7 @@ function cooling_losses(length)
     return aux_power # Vector with [p_aux,q_aux]
 end
 
+# Function to calculate losses in transmission/conversion
 function process_results!(result::Dict{String,Any})
     # Function to compute network losses
     losses = Dict{String,Any}()
