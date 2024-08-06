@@ -18,8 +18,8 @@ function process_superconductor_links!(data::Dict{String,Any},sc_data::Dict{Stri
         if any(load["load_bus"] == conv_dc["busac_i"] for (load_id, load) in data["load"])
             for (load_id, load) in data["load"]
                 if load["load_bus"] == conv_dc["busac_i"] # Add aux load from cooling
-                    load["pd"] = load["pd"] + branch_dc["p_aux"]/2
-                    load["qd"] = load["qd"] + branch_dc["q_aux"]/2
+                    load["pd"] = load["pd"] + (branch_dc["p_aux"]/2)*0.1
+                    load["qd"] = load["qd"] + (branch_dc["q_aux"]/2)*0.1
                 end
             end
         else
@@ -48,6 +48,11 @@ function process_superconductor_links2!(data::Dict{String,Any})
                     conv_dc["p_aux"] = branch_dc["p_aux"]/2
                     conv_dc["q_aux"] = branch_dc["q_aux"]/2
                     conv_dc["sc"]    =  true
+                    # Increase capacity of converters (not in pu as they are converted later)
+                    conv_dc["Pacmax"] = 300
+                    conv_dc["Pacmin"] = -300
+                    # conv_dc["Imax"] = 3 # Its calculated in the function process_additional_data
+                    
                 end                
             end
         end
@@ -61,8 +66,8 @@ function process_superconductor_links2!(data::Dict{String,Any})
                     end
                 end
             else
-                load_id_new = length(data["load"]) + 1
-                data["load"][string(load_id_new)] = Dict("source_id" => ["bus", conv_dc["busac_i"]],
+                load_id_new = length(data["load"]) + 1 #Max load number + 1
+                data["load"]["$load_id_new"] = Dict("source_id" => ["bus", conv_dc["busac_i"]],
                                                         "load_bus" => conv_dc["busac_i"],
                                                         "status" => 1, 
                                                         "qd" => conv_dc["p_aux"], 
@@ -72,9 +77,10 @@ function process_superconductor_links2!(data::Dict{String,Any})
         end
     end
 
-    for (branch_id,branch_dc) in data["branchdc"]
+    for (branch_id,branch_dc) in data["branchdc"] # Open line instead of deleting
         if branch_dc["sc"] == true
-            delete!(data["branchdc"],"$branch_id")
+            #delete!(data["branchdc"],"$branch_id")
+            branch_dc["status"] = 0
         end
     end
 
@@ -101,9 +107,9 @@ end
 function add_sc_links_3!(data::Dict{String,Any},sc_links::Vector{String})
     for sc_link in sc_links
         if haskey(data["branchdc"],sc_link)
-            data["branchdc"][sc_link]["length"] = 100 # All sc branches 200 km, to modify later
-            data["branchdc"][sc_link]["p_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[1]
-            data["branchdc"][sc_link]["q_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[2]
+            data["branchdc"][sc_link]["length"] = 100 # All sc branches 100 km, to modify later
+            data["branchdc"][sc_link]["p_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[1]*0.1
+            data["branchdc"][sc_link]["q_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[2]*0.1
             data["branchdc"][sc_link]["sc"]     = true
         end
     end
@@ -143,6 +149,8 @@ function process_results!(result::Dict{String,Any})
     for (branchdc_id,branchdc) in result["solution"]["branchdc"]
         losses["branches_dc"] = losses["branches_dc"] + loss_calc(branchdc["pt"],branchdc["pf"])
     end
+
+    return losses
 end
 
 # Calculates the magnitude of the losses

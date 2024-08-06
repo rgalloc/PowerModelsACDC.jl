@@ -6,6 +6,7 @@ using PowerModels ; const _PM = PowerModels
 using PowerModelsACDC ; const _PMACDC = PowerModelsACDC
 using Gurobi
 using Ipopt
+using JSON
 
 # Include new Functions
 include("../../src/core/process_supercoductor_links.jl")
@@ -19,7 +20,7 @@ nl_solver = Ipopt.Optimizer
 #nl_solver = Gurobi.Optimizer
 
 # Define superconductor links
-sc_links = ["1"] # Vector to state whihc dc branches are superconductor links
+sc_links = ["1"] # Vector to state wich dc branches are superconductor links
 #sc_data = Dict{String,Any}() # Dict to save sc branches data
 
 #sc_data = add_sc_links!(data,sc_links)
@@ -40,5 +41,25 @@ print("-------------------------------------------------------\n")
 print("                  Optimization Results                 \n")
 print("-------------------------------------------------------\n")
 print("\n Case 1: No SC Branches : ",result_original["objective"], "\n")
-print("\n Case 2: 1  SC Branch   : ",result["objective"], "\n")
+print("\n Case 2: 1  SC Branch(es)   : ",result["objective"], "\n")
+
+# Savig results to JSON
+results_path = "C:/Users/rgalloca/Desktop/OPF_SC_PMACDC/results"
+# Original case (No SC)
+json_string = JSON.json(result_original)
+result_file_name = join([results_path,"/result_original.json"])
+open(result_file_name,"w") do f
+    JSON.print(f, json_string)
+end
+
+# 1 SC Link
+json_string = JSON.json(result)
+result_file_name = join([results_path,"/result_1_SC_link.json"])
+open(result_file_name,"w") do f
+    JSON.print(f, json_string)
+end
+
+# Computation of losses
+losses = process_results!(result)
+losses_original = process_results!(result_original)
 
