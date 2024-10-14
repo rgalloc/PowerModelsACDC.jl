@@ -20,7 +20,7 @@ nl_solver = Ipopt.Optimizer
 #nl_solver = Gurobi.Optimizer
 
 # Define superconductor links
-sc_links = ["1"] # Vector to state wich dc branches are superconductor links
+sc_links = ["1","2"] # Vector to state which dc branches are superconductor links
 #sc_data = Dict{String,Any}() # Dict to save sc branches data
 
 #sc_data = add_sc_links!(data,sc_links)
@@ -43,7 +43,7 @@ print("-------------------------------------------------------\n")
 print("\n Case 1: No SC Branches : ",result_original["objective"], "\n")
 print("\n Case 2: 1  SC Branch(es)   : ",result["objective"], "\n")
 
-# Savig results to JSON
+# Saving results to JSON
 results_path = "C:/Users/rgalloca/Desktop/OPF_SC_PMACDC/results"
 # Original case (No SC)
 json_string = JSON.json(result_original)
