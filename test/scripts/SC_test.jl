@@ -8,12 +8,12 @@ using Gurobi
 using Ipopt
 using JSON
 
-# Include new Functions
+# Include new function
 include("../../src/core/process_supercoductor_links.jl")
 
 # Add system data
 #data = _PM.parse_file("test/data/superconductivity/case5_acdc.m")
-data = _PM.parse_file("test/data/superconductivity/case5_acdc_sc.m") # New test case
+data = _PM.parse_file("test/data/superconductivity/case5_acdc_sc.m") # New test case only P2P
 data_original = deepcopy(data)
 
 nl_solver = Ipopt.Optimizer
@@ -44,7 +44,7 @@ print("\n Case 1: No SC Branches : ",result_original["objective"], "\n")
 print("\n Case 2: 1  SC Branch(es)   : ",result["objective"], "\n")
 
 # Saving results to JSON
-results_path = "C:/Users/rgalloca/Desktop/OPF_SC_PMACDC/results"
+results_path = "/Users/rgallo/Library/CloudStorage/OneDrive-KULeuven/OPF_SC" 
 # Original case (No SC)
 json_string = JSON.json(result_original)
 result_file_name = join([results_path,"/result_original.json"])
