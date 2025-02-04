@@ -54,6 +54,64 @@ function process_superconductor_links2!(data::Dict{String,Any})
 
 end
 
+# For the previous function, the dc nodes are not the same, conv 1 and 2 were connected to dc bus 1
+# but conv 3 was connected to dc bus 2
+function process_sc_meshed!(data::Dict{String,Any})
+
+    sc_dc_bus = 0 # Variable initialization
+    for (branch_id, branch_dc) in data["branchdc"]
+        if branch_dc["sc"] == true
+            sc_dc_bus = branch_dc["fbusdc"]
+            break
+        end
+    end
+
+    for (conv_id, conv_dc) in data["convdc"]        
+        for (branch_id, branch_dc) in data["branchdc"]
+            if branch_dc["sc"] == true
+                if conv_dc["busdc_i"]  == branch_dc["tbusdc"] || conv_dc["busdc_i"] == branch_dc["fbusdc"]
+                    conv_dc["busdc_i"] =  sc_dc_bus
+                    conv_dc["p_aux"]   =  branch_dc["p_aux"]/2 # Active power required for the auxiliaries (cooling stations)
+                    conv_dc["q_aux"]   =  branch_dc["q_aux"]/2 # Reactive power required for the auxiliaries (cooling stations)
+                    conv_dc["sc"]      =  true
+                    # Increase capacity of converters (not in pu as they are converted later)
+                    #conv_dc["Pacmax"]  =  300
+                    #conv_dc["Pacmin"]  = -300
+                    conv_dc["Pacmax"]  =  sqrt(3)*conv_dc["Pacmax"] # To consider that 1.5 is multiplied twice
+                    conv_dc["Pacmin"]  =  sqrt(3)*conv_dc["Pacmin"]
+                    
+                end                
+            end
+        end
+        
+        if haskey(conv_dc,"sc")
+            if any(load["load_bus"] == conv_dc["busac_i"] for (load_id, load) in data["load"])
+                for (load_id, load) in data["load"]
+                    if load["load_bus"] == conv_dc["busac_i"] # Add aux load from cooling
+                        load["pd"] = load["pd"] + conv_dc["p_aux"]
+                        load["qd"] = load["qd"] + conv_dc["q_aux"]
+                    end
+                end
+            else
+                load_id_new = length(data["load"]) + 1 #Max load number + 1
+                data["load"]["$load_id_new"] = Dict("source_id" => ["bus", conv_dc["busac_i"]],
+                                                        "load_bus" => conv_dc["busac_i"],
+                                                        "status" => 1, 
+                                                        "qd" => conv_dc["p_aux"], 
+                                                        "pd" => conv_dc["q_aux"],
+                                                        "index" => load_id_new)
+            end  
+        end
+    end
+
+    for (branch_id,branch_dc) in data["branchdc"] # Open line instead of deleting
+        if branch_dc["sc"] == true
+            #delete!(data["branchdc"],"$branch_id")
+            branch_dc["status"] = 0
+        end
+    end
+end
+
 # Function to add sc key to branchdc data
 
 function add_sc_links_3!(data::Dict{String,Any},sc_links::Vector{String})
