@@ -13,21 +13,25 @@ include("../../src/core/process_supercoductor_links.jl")
 
 # Add system data
 #data = _PM.parse_file("test/data/superconductivity/case5_acdc.m")
-data = _PM.parse_file("test/data/superconductivity/case5_acdc_sc.m") # New test case only P2P
+#data = _PM.parse_file("test/data/superconductivity/case5_acdc_sc.m") # New test case only P2P
+data = _PM.parse_file("test/data/superconductivity/case67.m")
 data_original = deepcopy(data)
 
 nl_solver = Ipopt.Optimizer
 #nl_solver = Gurobi.Optimizer
 
 # Define superconductor links
-sc_links = ["1","2"] # Vector to state which dc branches are superconductor links
+#sc_links = ["1","2"] # Vector to state which dc branches are superconductor links
+#sc_links = ["1","2","3"] # For meshed
+sc_links = [string(i) for i in 1:11]
 #sc_data = Dict{String,Any}() # Dict to save sc branches data
 
 #sc_data = add_sc_links!(data,sc_links)
 #sc_data = add_sc_links_2!(data,sc_links)
 sc_data = add_sc_links_3!(data,sc_links)
 
-process_superconductor_links2!(data)
+#process_superconductor_links2!(data)
+process_sc_meshed!(data)
 
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
 
@@ -59,7 +63,7 @@ open(result_file_name,"w") do f
     JSON.print(f, json_string)
 end
 
-# Computation of losses
-losses = process_results!(result)
-losses_original = process_results!(result_original)
+# # Computation of losses
+# losses = process_results!(result)
+# losses_original = process_results!(result_original)
 
