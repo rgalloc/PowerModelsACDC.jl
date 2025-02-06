@@ -77,7 +77,7 @@ function process_sc_meshed!(data::Dict{String,Any})
                     # Increase capacity of converters (not in pu as they are converted later)
                     #conv_dc["Pacmax"]  =  300
                     #conv_dc["Pacmin"]  = -300
-                    conv_dc["Pacmax"]  =  sqrt(3)*conv_dc["Pacmax"] # To consider that 1.5 is multiplied twice
+                    conv_dc["Pacmax"]  =  sqrt(3)*conv_dc["Pacmax"] # To consider that 3 is multiplied twice
                     conv_dc["Pacmin"]  =  sqrt(3)*conv_dc["Pacmin"]
                     
                 end                
