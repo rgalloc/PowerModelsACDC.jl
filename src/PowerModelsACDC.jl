@@ -27,6 +27,7 @@ include("prob/fcuc.jl")
 include("prob/rdopf.jl")
 include("prob/scopf.jl")
 include("prob/spcuc.jl")
+include("prob/acdcopf_superconducting.jl")
 
 include("core/data.jl")
 include("core/base.jl")
