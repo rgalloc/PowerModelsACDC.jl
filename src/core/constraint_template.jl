@@ -64,6 +64,16 @@ function constraint_ohms_dc_branch(pm::_PM.AbstractPowerModel, i::Int; nw::Int=_
 
     constraint_ohms_dc_branch(pm, nw, f_bus, t_bus, f_idx, t_idx, branch["r"], p)
 end
+
+function constraint_ohms_dc_branch_superconducting(pm::_PM.AbstractPowerModel, i::Int; nw::Int=_PM.nw_id_default)
+    branch = _PM.ref(pm, nw, :branchdc, i)
+    f_bus = branch["fbusdc"]
+    t_bus = branch["tbusdc"]
+    f_idx = (i, f_bus, t_bus)
+    t_idx = (i, t_bus, f_bus)
+
+    constraint_ohms_dc_branch_superconducting(pm, nw, f_idx, t_idx)
+end
 #
 function constraint_converter_losses(pm::_PM.AbstractPowerModel, i::Int; nw::Int=_PM.nw_id_default)
     conv = _PM.ref(pm, nw, :convdc, i)

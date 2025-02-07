@@ -33,6 +33,7 @@ include("prob/tnepopf_bf.jl")
 include("prob/mp_tnepopf.jl")
 include("prob/mp_tnepopf_bf.jl")
 include("prob/sacdcpf.jl")
+include("prob/acdcopf_superconducting.jl")
 
 
 

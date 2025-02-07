@@ -501,3 +501,21 @@ function constraint_power_balance_dcne_dcne(pm::_PM.AbstractPowerModel, n::Int, 
         _PM.sol(pm, n, :busdcne, i)[:lam_kcl_r] = cstr_p
     end
 end
+
+#############################
+#### SC links constraint
+#############################
+
+"""
+Creates Ohms constraints for DC branches
+
+```
+p[f_idx] + p[t_idx] == 0)
+```
+"""
+function constraint_ohms_dc_branch_superconducting(pm::_PM.AbstractPowerModel, n::Int, f_idx, t_idx)
+    p_dc_fr = _PM.var(pm, n, :p_dcgrid, f_idx)
+    p_dc_to = _PM.var(pm, n, :p_dcgrid, t_idx)
+
+    JuMP.@constraint(pm.model, p_dc_fr + p_dc_to == 0)
+end
