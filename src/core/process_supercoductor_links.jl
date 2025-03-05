@@ -115,19 +115,30 @@ end
 # New function to add load and increase rating of line and converter
 function process_superconductor_links_new!(data::Dict{String,Any})
     
+    # for (conv_id,conv_dc) in data["convdc"]
+    #     for (branchdc_id, branch_dc) in data["branchdc"]
+    #         if branch_dc["sc"] == true
+
+    #         else
+    #         end
+    #     end
+    # end
+
+
+
+
+
     for (conv_id, conv_dc) in data["convdc"]        
         for (branch_id, branch_dc) in data["branchdc"]
             if branch_dc["sc"] == true
                 if conv_dc["busdc_i"] == branch_dc["tbusdc"] || conv_dc["busdc_i"] == branch_dc["fbusdc"]
-                    conv_dc["busdc_i"] = branch_dc["fbusdc"]
+                    #conv_dc["busdc_i"] = branch_dc["fbusdc"]
                     conv_dc["p_aux"] = branch_dc["p_aux"]/2 # Active power required for the auxiliaries (cooling stations)
                     conv_dc["q_aux"] = branch_dc["q_aux"]/2 # Reactive power required for the auxiliaries (cooling stations)
                     conv_dc["sc"]    =  true
                     # Increase capacity of converters (not in pu as they are converted later)
-                    conv_dc["Pacmax"] = 300
-                    conv_dc["Pacmin"] = -300
-                    # conv_dc["Imax"] = 3 # Its calculated in the function process_additional_data based on P and Q
-                    
+                    conv_dc["Pacmax"] = 3*conv_dc["Pacmax"]
+                    conv_dc["Pacmin"] = 3*conv_dc["Pacmin"]                    
                 end                
             end
         end
@@ -159,14 +170,15 @@ function add_sc_links_3!(data::Dict{String,Any},sc_links::Vector{String})
     for sc_link in sc_links
         if haskey(data["branchdc"],sc_link)
             data["branchdc"][sc_link]["length"] = 100 # All sc branches 100 km, to modify later
-            data["branchdc"][sc_link]["p_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[1]*0.1
+            data["branchdc"][sc_link]["p_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[1]*0.1 #0.1 to reduce the relative magnitude of the losses with respect to the total system load.
             data["branchdc"][sc_link]["q_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[2]*0.1
             data["branchdc"][sc_link]["sc"]     = true
             # Increase the rating of the line
+            data["branchdc"][sc_link]["rateA"] = 3*data["branchdc"][sc_link]["rateA"]
         end
     end
 
-    for (branchdc_id, branch_dc) in data["branchdc"] # Possibly deleting this part
+    for (~, branch_dc) in data["branchdc"] # Possibly deleting this part
         if !haskey(branch_dc,"sc")
             branch_dc["sc"] = false
         end
@@ -175,6 +187,9 @@ end
 
 # This function calculate the cooling losses based on length
 function cooling_losses(length)
+    # To modify:
+    # Calculate the pu of the aux power based on the system Sbase
+    # Currently assumed Sb = 100 MVA
     p_losses = 0.005 # Losses equal to 500 kW per station and 1 station every 25 km
     pf = 0.85
     aux_power = []
