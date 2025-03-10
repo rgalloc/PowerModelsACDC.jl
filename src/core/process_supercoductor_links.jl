@@ -115,19 +115,6 @@ end
 # New function to add load and increase rating of line and converter
 function process_superconductor_links_new!(data::Dict{String,Any})
     
-    # for (conv_id,conv_dc) in data["convdc"]
-    #     for (branchdc_id, branch_dc) in data["branchdc"]
-    #         if branch_dc["sc"] == true
-
-    #         else
-    #         end
-    #     end
-    # end
-
-
-
-
-
     for (conv_id, conv_dc) in data["convdc"]        
         for (branch_id, branch_dc) in data["branchdc"]
             if branch_dc["sc"] == true
