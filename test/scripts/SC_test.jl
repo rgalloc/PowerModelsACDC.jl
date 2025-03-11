@@ -125,9 +125,7 @@ matches = [
 ]
 
 for (conv_id, branch_id) in matches
-    # Check if the con_key exists in con
     if haskey(data["convdc"], conv_id)
-        # Add a new key-value pair to the inner dictionary of con[con_key]
         data["convdc"][conv_id]["sc"] = true # Modify the key-value pair as needed
          data["convdc"][conv_id]["Pacmax"] = 3*data["convdc"][conv_id]["Pacmax"]
          data["convdc"][conv_id]["Pacmin"] = 3*data["convdc"][conv_id]["Pacmin"] 
