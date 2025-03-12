@@ -5,180 +5,69 @@
 # Additionally, the cooling power is added at both sides of the converters
 # in their associated AC nodes, half at each end
 
-# For P2P links
-function process_superconductor_links2!(data::Dict{String,Any})
-    
-    for (conv_id, conv_dc) in data["convdc"]        
-        for (branch_id, branch_dc) in data["branchdc"]
-            if branch_dc["sc"] == true
-                if conv_dc["busdc_i"] == branch_dc["tbusdc"] || conv_dc["busdc_i"] == branch_dc["fbusdc"]
-                    conv_dc["busdc_i"] = branch_dc["fbusdc"]
-                    conv_dc["p_aux"] = branch_dc["p_aux"]/2 # Active power required for the auxiliaries (cooling stations)
-                    conv_dc["q_aux"] = branch_dc["q_aux"]/2 # Reactive power required for the auxiliaries (cooling stations)
-                    conv_dc["sc"]    =  true
-                    # Increase capacity of converters (not in pu as they are converted later)
-                    conv_dc["Pacmax"] = 300
-                    conv_dc["Pacmin"] = -300
-                    # conv_dc["Imax"] = 3 # Its calculated in the function process_additional_data based on P and Q
-                    
-                end                
-            end
-        end
-        
-        if haskey(conv_dc,"sc")
-            if any(load["load_bus"] == conv_dc["busac_i"] for (load_id, load) in data["load"])
+function process_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
+
+    add_sc_links!(data,sc_links)
+
+    matches = [
+    (conv_id, branch_id) for (conv_id, conv_dc) in data["convdc"]
+                        for (branch_id, branch_dc) in data["branchdc"]
+                        if branch_dc["sc"] == true && (conv_dc["busdc_i"] == branch_dc["fbusdc"] || conv_dc["busdc_i"] == branch_dc["tbusdc"])
+    ]
+
+    for (conv_id, branch_id) in matches
+        if haskey(data["convdc"], conv_id)
+            data["convdc"][conv_id]["sc"] = true # Modify the key-value pair as needed
+            data["convdc"][conv_id]["Pacmax"] = 3*data["convdc"][conv_id]["Pacmax"]
+            data["convdc"][conv_id]["Pacmin"] = 3*data["convdc"][conv_id]["Pacmin"] 
+
+            if any(load["load_bus"] == data["convdc"][conv_id]["busac_i"] for (load_id, load) in data["load"])
                 for (load_id, load) in data["load"]
-                    if load["load_bus"] == conv_dc["busac_i"] # Add aux load from cooling
-                        load["pd"] = load["pd"] + conv_dc["p_aux"]
-                        load["qd"] = load["qd"] + conv_dc["q_aux"]
+                    if load["load_bus"] == data["convdc"][conv_id]["busac_i"] # Add aux load from cooling
+                        load["pd"] = load["pd"] + data["branchdc"][branch_id]["p_aux"]/2
+                        load["qd"] = load["qd"] + data["branchdc"][branch_id]["q_aux"]/2
                     end
                 end
             else
                 load_id_new = length(data["load"]) + 1 #Max load number + 1
-                data["load"]["$load_id_new"] = Dict("source_id" => ["bus", conv_dc["busac_i"]],
-                                                        "load_bus" => conv_dc["busac_i"],
-                                                        "status" => 1, 
-                                                        "qd" => conv_dc["p_aux"], 
-                                                        "pd" => conv_dc["q_aux"],
-                                                        "index" => load_id_new)
+                data["load"]["$load_id_new"] = Dict("source_id" => ["bus", data["convdc"][conv_id]["busac_i"]],
+                                                    "load_bus" => data["convdc"][conv_id]["busac_i"],
+                                                    "status" => 1, 
+                                                    "qd" => data["branchdc"][branch_id]["p_aux"]/2, 
+                                                    "pd" => data["branchdc"][branch_id]["q_aux"]/2,
+                                                    "index" => load_id_new)
             end  
-        end
-    end
-
-    for (branch_id,branch_dc) in data["branchdc"] # Open line instead of deleting
-        if branch_dc["sc"] == true
-            #delete!(data["branchdc"],"$branch_id")
-            branch_dc["status"] = 0
-        end
-    end
-
-end
-
-# For the previous function, the dc nodes are not the same, conv 1 and 2 were connected to dc bus 1
-# but conv 3 was connected to dc bus 2
-function process_sc_meshed!(data::Dict{String,Any})
-
-    sc_dc_bus = 0 # Variable initialization
-    for (branch_id, branch_dc) in data["branchdc"]
-        if branch_dc["sc"] == true
-            sc_dc_bus = branch_dc["fbusdc"]
-            break
-        end
-    end
-
-    for (conv_id, conv_dc) in data["convdc"]        
-        for (branch_id, branch_dc) in data["branchdc"]
-            if branch_dc["sc"] == true
-                if conv_dc["busdc_i"]  == branch_dc["tbusdc"] || conv_dc["busdc_i"] == branch_dc["fbusdc"]
-                    conv_dc["busdc_i"] =  sc_dc_bus
-                    conv_dc["p_aux"]   =  branch_dc["p_aux"]/2 # Active power required for the auxiliaries (cooling stations)
-                    conv_dc["q_aux"]   =  branch_dc["q_aux"]/2 # Reactive power required for the auxiliaries (cooling stations)
-                    conv_dc["sc"]      =  true
-                    # Increase capacity of converters (not in pu as they are converted later)
-                    #conv_dc["Pacmax"]  =  300
-                    #conv_dc["Pacmin"]  = -300
-                    conv_dc["Pacmax"]  =  sqrt(3)*conv_dc["Pacmax"] # To consider that 3 is multiplied twice
-                    conv_dc["Pacmin"]  =  sqrt(3)*conv_dc["Pacmin"]
-                    
-                end                
-            end
-        end
-        
-        if haskey(conv_dc,"sc")
-            if any(load["load_bus"] == conv_dc["busac_i"] for (load_id, load) in data["load"])
-                for (load_id, load) in data["load"]
-                    if load["load_bus"] == conv_dc["busac_i"] # Add aux load from cooling
-                        load["pd"] = load["pd"] + conv_dc["p_aux"]
-                        load["qd"] = load["qd"] + conv_dc["q_aux"]
-                    end
-                end
-            else
-                load_id_new = length(data["load"]) + 1 #Max load number + 1
-                data["load"]["$load_id_new"] = Dict("source_id" => ["bus", conv_dc["busac_i"]],
-                                                        "load_bus" => conv_dc["busac_i"],
-                                                        "status" => 1, 
-                                                        "qd" => conv_dc["p_aux"], 
-                                                        "pd" => conv_dc["q_aux"],
-                                                        "index" => load_id_new)
-            end  
-        end
-    end
-
-    for (branch_id,branch_dc) in data["branchdc"] # Open line instead of deleting
-        if branch_dc["sc"] == true
-            #delete!(data["branchdc"],"$branch_id")
-            branch_dc["status"] = 0
         end
     end
 end
 
-# New function to add load and increase rating of line and converter
-function process_superconductor_links_new!(data::Dict{String,Any})
-    
-    for (conv_id, conv_dc) in data["convdc"]        
-        for (branch_id, branch_dc) in data["branchdc"]
-            if branch_dc["sc"] == true
-                if conv_dc["busdc_i"] == branch_dc["tbusdc"] || conv_dc["busdc_i"] == branch_dc["fbusdc"]
-                    #conv_dc["busdc_i"] = branch_dc["fbusdc"]
-                    conv_dc["p_aux"] = branch_dc["p_aux"]/2 # Active power required for the auxiliaries (cooling stations)
-                    conv_dc["q_aux"] = branch_dc["q_aux"]/2 # Reactive power required for the auxiliaries (cooling stations)
-                    conv_dc["sc"]    =  true
-                    # Increase capacity of converters (not in pu as they are converted later)
-                    conv_dc["Pacmax"] = 3*conv_dc["Pacmax"]
-                    conv_dc["Pacmin"] = 3*conv_dc["Pacmin"]                    
-                end                
-            end
-        end
-        
-        if haskey(conv_dc,"sc")
-            if any(load["load_bus"] == conv_dc["busac_i"] for (load_id, load) in data["load"])
-                for (load_id, load) in data["load"]
-                    if load["load_bus"] == conv_dc["busac_i"] # Add aux load from cooling
-                        load["pd"] = load["pd"] + conv_dc["p_aux"]
-                        load["qd"] = load["qd"] + conv_dc["q_aux"]
-                    end
-                end
-            else
-                load_id_new = length(data["load"]) + 1 #Max load number + 1
-                data["load"]["$load_id_new"] = Dict("source_id" => ["bus", conv_dc["busac_i"]],
-                                                        "load_bus" => conv_dc["busac_i"],
-                                                        "status" => 1, 
-                                                        "qd" => conv_dc["p_aux"], 
-                                                        "pd" => conv_dc["q_aux"],
-                                                        "index" => load_id_new)
-            end  
-        end
-    end
+# Function to define which DC branches are superconducting
+function add_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
 
-end
-# Function to add sc key to branchdc data
+    Sbase = data["baseMVA"]
 
-function add_sc_links_3!(data::Dict{String,Any},sc_links::Vector{String})
     for sc_link in sc_links
         if haskey(data["branchdc"],sc_link)
             data["branchdc"][sc_link]["length"] = 100 # All sc branches 100 km, to modify later
-            data["branchdc"][sc_link]["p_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[1]*0.1 #0.1 to reduce the relative magnitude of the losses with respect to the total system load.
-            data["branchdc"][sc_link]["q_aux"]  = cooling_losses(data["branchdc"][sc_link]["length"])[2]*0.1
+            data["branchdc"][sc_link]["p_aux"]  = cooling_power(data["branchdc"][sc_link]["length"],Sbase)[1]*0.1 #0.1 to reduce the relative magnitude of the losses with respect to the total system load of the 5 bus case.
+            data["branchdc"][sc_link]["q_aux"]  = cooling_power(data["branchdc"][sc_link]["length"],Sbase)[2]*0.1
             data["branchdc"][sc_link]["sc"]     = true
-            # Increase the rating of the line
-            data["branchdc"][sc_link]["rateA"] = 3*data["branchdc"][sc_link]["rateA"]
+            data["branchdc"][sc_link]["rateA"]  = 3*data["branchdc"][sc_link]["rateA"]
         end
     end
 
-    for (~, branch_dc) in data["branchdc"] # Possibly deleting this part
+    for (~, branch_dc) in data["branchdc"]
         if !haskey(branch_dc,"sc")
             branch_dc["sc"] = false
         end
     end  
 end
 
-# This function calculate the cooling losses based on length
-function cooling_losses(length)
-    # To modify:
-    # Calculate the pu of the aux power based on the system Sbase
-    # Currently assumed Sb = 100 MVA
-    p_losses = 0.005 # Losses equal to 500 kW per station and 1 station every 25 km
-    pf = 0.85
+# This function calculate the cooling power based on length
+function cooling_power(length,Sbase)
+    # Sb = 100 MVA
+    p_losses = 0.5/Sbase # Losses equal to 500 kW per station and 1 station every 25 km
+    pf = 0.85 # Assumption
     aux_power = []
     p_aux = ceil((length/25))*p_losses
     q_aux = round(p_aux*tan(acos(pf)),digits=3)
@@ -186,30 +75,3 @@ function cooling_losses(length)
     push!(aux_power,q_aux) # Reactive power losses
     return aux_power # Vector with [p_aux,q_aux]
 end
-
-## Put these functions in a different file
-
-# # Function to calculate losses in transmission/conversion
-# function process_results!(result::Dict{String,Any})
-#     # Function to compute network losses
-#     losses = Dict{String,Any}()
-#     losses["branches_ac"] = 0
-#     losses["branches_dc"] = 0
-#     losses["convdc"] = Dict{String,Any}()
-
-#     # AC branches losses
-#     for (branch_id,branch) in result["solution"]["branch"]
-#         losses["branches_ac"] = losses["branches_ac"] + loss_calc(branch["pt"],branch["pf"])
-#     end
-#     # DC branches losses
-#     for (branchdc_id,branchdc) in result["solution"]["branchdc"]
-#         losses["branches_dc"] = losses["branches_dc"] + loss_calc(branchdc["pt"],branchdc["pf"])
-#     end
-
-#     return losses
-# end
-
-# # Calculates the magnitude of the losses
-# function loss_calc(x,y)
-#     return abs( abs(x) - abs(y) )
-# end
