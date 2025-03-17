@@ -17,7 +17,7 @@ function process_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
 
     for (conv_id, branch_id) in matches
         if haskey(data["convdc"], conv_id)
-            data["convdc"][conv_id]["sc"] = true # Modify the key-value pair as needed
+            data["convdc"][conv_id]["sc"] = true # To indicate the converter has a superconducting branch
             data["convdc"][conv_id]["Pacmax"] = 3*data["convdc"][conv_id]["Pacmax"]
             data["convdc"][conv_id]["Pacmin"] = 3*data["convdc"][conv_id]["Pacmin"] 
 
