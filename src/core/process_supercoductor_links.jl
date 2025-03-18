@@ -5,7 +5,7 @@
 # Additionally, the cooling power is added at both sides of the converters
 # in their associated AC nodes, half at each end
 
-function process_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
+function process_sc_links!(data::Dict{String,Any},sc_links::Vector{String};power_capacity=5000)
 
     add_sc_links!(data,sc_links)
 
@@ -20,6 +20,7 @@ function process_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
             data["convdc"][conv_id]["sc"] = true # To indicate the converter has a superconducting branch
             data["convdc"][conv_id]["Pacmax"] = 3*data["convdc"][conv_id]["Pacmax"]
             data["convdc"][conv_id]["Pacmin"] = 3*data["convdc"][conv_id]["Pacmin"] 
+            #Q = P/2
 
             if any(load["load_bus"] == data["convdc"][conv_id]["busac_i"] for (load_id, load) in data["load"])
                 for (load_id, load) in data["load"]
@@ -42,7 +43,7 @@ function process_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
 end
 
 # Function to define which DC branches are superconducting
-function add_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
+function add_sc_links!(data::Dict{String,Any},sc_links::Vector{String};power_capacity=5000)
 
     Sbase = data["baseMVA"]
 
@@ -52,7 +53,7 @@ function add_sc_links!(data::Dict{String,Any},sc_links::Vector{String})
             data["branchdc"][sc_link]["p_aux"]  = cooling_power(data["branchdc"][sc_link]["length"],Sbase)[1]*0.1 #0.1 to reduce the relative magnitude of the losses with respect to the total system load of the 5 bus case.
             data["branchdc"][sc_link]["q_aux"]  = cooling_power(data["branchdc"][sc_link]["length"],Sbase)[2]*0.1
             data["branchdc"][sc_link]["sc"]     = true
-            data["branchdc"][sc_link]["rateA"]  = 3*data["branchdc"][sc_link]["rateA"]
+            data["branchdc"][sc_link]["rateA"]  = power_capacity
         end
     end
 
