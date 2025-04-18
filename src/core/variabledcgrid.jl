@@ -279,3 +279,17 @@ function variable_branch_ne(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_defaul
     end
     report && _IM.sol_component_value(pm, _PM.pm_it_sym, nw, :branchdc_ne, :isbuilt, _PM.ids(pm, nw, :branchdc_ne), Z_dc_branch_ne)
 end
+
+
+####################### PFC variables ################################
+" variable: '0 < duty_cycle[i] < 1' for 'i' in 'pfc' "
+function variable_duty_cycle_pfc(pm::_PM.AbstractPowerModel; nw::Int=_PM.nw_id_default, report::Bool=true)
+    duty_cycle = _PM.var(pm, nw)[:duty_cycle] = JuMP.@variable(pm.model,
+    [i in _PM.ids(pm, nw, :pfc)], base_name="$(nw)_duty_cycle",
+    lower_bound = 0.01,
+    upper_bound = 0.99,
+    start = _PM.comp_start_value(_PM.ref(pm, nw, :pfc, i), "duty_cycle", 0.5)
+    )
+
+    report && _IM.sol_component_value(pm, _PM.pm_it_sym, nw, :pfc, :duty_cycle, _PM.ids(pm, nw, :pfc), duty_cycle)
+end
