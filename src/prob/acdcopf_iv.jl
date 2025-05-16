@@ -2,11 +2,11 @@
 function solve_acdcopf_iv(file::String, model_type, optimizer; kwargs...)
     data = _PM.parse_file(file)
     process_additional_data!(data)
-    return solve_acdcopf_iv(data, model_type, optimizer; ref_extensions = [add_ref_dcgrid!, ref_add_pst!, ref_add_sssc!, ref_add_flex_load!], kwargs...)
+    return solve_acdcopf_iv(data, model_type, optimizer; ref_extensions = [add_ref_dcgrid!, ref_add_pst!, ref_add_sssc!, ref_add_flex_load!, ref_add_pfc!], kwargs...)
 end
 
 function solve_acdcopf_iv(data::Dict{String,Any}, model_type::Type, optimizer; kwargs...)
-    return _PM.solve_model(data, model_type, optimizer, build_acdcopf_iv; ref_extensions = [add_ref_dcgrid!, ref_add_pst!, ref_add_sssc!, ref_add_flex_load!], kwargs...)
+    return _PM.solve_model(data, model_type, optimizer, build_acdcopf_iv; ref_extensions = [add_ref_dcgrid!, ref_add_pst!, ref_add_sssc!, ref_add_flex_load!, ref_add_pfc!], kwargs...)
 end
 
 ""
@@ -27,6 +27,7 @@ function build_acdcopf_iv(pm::_PM.AbstractIVRModel)
     variable_load_current(pm)
     variable_pst(pm)
     variable_sssc(pm)
+    variable_pfc(pm)
 
     for i in _PM.ids(pm, :ref_buses)
         _PM.constraint_theta_ref(pm, i)
@@ -76,5 +77,9 @@ function build_acdcopf_iv(pm::_PM.AbstractIVRModel)
         constraint_conv_transformer(pm, i)
         constraint_conv_reactor(pm, i)
         constraint_conv_filter(pm, i)
+    end
+
+    for i in _PM.ids(pm, :pfc)
+        #PFC constraints
     end
 end
