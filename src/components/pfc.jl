@@ -1,9 +1,6 @@
 function variable_pfc(pm::_PM.AbstractIVRModel; kwargs...)
     variable_duty_cycle(pm; kwargs...)
     variable_c_voltage(pm; kwargs...)
-    # variable_terminal_1_current(pm; kwargs...)
-    # variable_terminal_2_current(pm; kwargs...)
-    # variable_terminal_3_current(pm; kwargs...)
     variable_pfc_current(pm; kwargs...)
 end
 
@@ -51,20 +48,22 @@ function variable_pfc_current(pm::_PM.AbstractIVRModel; nw::Int=_PM.nw_id_defaul
             JuMP.set_upper_bound(ipfc_dc[arc], _PM.ref(pm, nw, :pfc, l)["pfc_current_max"])
         end
     end
-    report && _PM.sol_component_value(pm, nw, :pfc, :ipfc_dc, _PM.ids(pm, nw, :pfc), ipfc_dc)
+    #report && _PM.sol_component_value(pm, nw, :pfc, :ipfc_dc, _PM.ids(pm, nw, :pfc), ipfc_dc) # Check later how to fix it.
 end
 
 ## Constraint templates
 # 2 Voltages constraints
 # duty cycle constraint
-# Constraint to calculate the input current
+# Constraint to calculate the input current (may be not needed)
 
 function constraint_duty_cycle_pfc(pm::_PM.AbstractIVRModel, i::Int; nw::Int=_PM.nw_id_default)
     pfc = _PM.ref(pm, nw, :pfc, i) # Calls the pfc data from the dictionary --> data dict
-    arcs_pfc = _PM.ref(pm, nw, :arcs_pfc) # Calls the pfc arcs from the dictionary
+    arcs_pfc = _PM.ref(pm, nw, :arcs_pfc)
+    pfc_terminal_1 = pfc["terminal1_bus"]
+    pfc_terminal_2 = pfc["terminal2_bus"]
+    pfc_terminal_3 = pfc["terminal3_bus"]
 
-
-    constraint_duty_cycle_pfc(pm, nw, i, arcs_pfc)
+    constraint_duty_cycle_pfc(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_terminal_2, pfc_terminal_3)    
 end
 
 function constraint_voltage_terminal_2_pfc(pm::_PM.AbstractIVRModel, i::Int; nw::Int=_PM.nw_id_default)
@@ -87,21 +86,41 @@ function constraint_voltage_terminal_3_pfc(pm::_PM.AbstractIVRModel, i::Int; nw:
     constraint_voltage_terminal_3_pfc(pm, nw, i, pfc_terminal_1, pfc_terminal_3, idx_terminal_1, idx_terminal_3)
 end
 
+function constraint_pfc_current_balance(pm::_PM.AbstractIVRModel, i::Int; nw::Int=_PM.nw_id_default)
+    pfc = _PM.ref(pm, nw, :pfc, i) 
+    arcs_pfc = _PM.ref(pm, nw, :arcs_pfc)
+    pfc_terminal_1 = pfc["terminal1_bus"]
+    pfc_terminal_2 = pfc["terminal2_bus"]
+    pfc_terminal_3 = pfc["terminal3_bus"]
+
+    constraint_pfc_current_balance(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_terminal_2, pfc_terminal_3)
+end
+
 ## Associated constraints
-function constraint_duty_cycle_pfc(pm, nw, i, arcs_pfc)
+function constraint_duty_cycle_pfc(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_terminal_2, pfc_terminal_3)
     duty_cycle = _PM.var(pm, nw, :duty_cycle, i)
     ipfc_dc = _PM.var(pm, nw, :ipfc_dc, arcs_pfc)
+    I2 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_2,pfc_terminal_1))
+    I3 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_3,pfc_terminal_1))
 
-    JuMP.@constraint(pm.model, duty_cycle - abs()/(abs() + abs() + 1e-6) == 0)
+    JuMP.@constraint(pm.model, duty_cycle - abs(I3)/(abs(I2) + abs(I3) + 1e-6) == 0) # 1e-6 to avoid division by zero
+end
 
-    duty_cycle[pfc] - (abs(pfc_i3g[pfc])/(abs(pfc_i2g[pfc]) + abs(pfc_i3g[pfc]))) == 0
+function constraint_pfc_current_balance(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_terminal_2, pfc_terminal_3)
+    ipfc_dc = _PM.var(pm, nw, :ipfc_dc, arcs_pfc)
+    I12 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_1,pfc_terminal_2))
+    I13 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_1,pfc_terminal_3))
+    I21 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_2,pfc_terminal_1))
+    I31 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_3,pfc_terminal_1))
+
+    JuMP.@constraint(pm.model, I12 + I13 + I21 + I31 == 0) # Kirchhoff's current law
 end
 
 function constraint_voltage_terminal_2_pfc(pm, nw, i, pfc_terminal_1, pfc_terminal_2, idx_terminal_1, idx_terminal_2)
     duty_cycle = _PM.var(pm, nw, :duty_cycle, i)
     c_voltage = _PM.var(pm, nw, :c_voltage, i)
-    busdc_terminal_1 = _PM.var(pm, nw, :busdc, pfc_terminal_1)
-    busdc_terminal_2 = _PM.var(pm, nw, :busdc, pfc_terminal_2)
+    busdc_terminal_1 = _PM.var(pm, nw, :vdcm, pfc_terminal_1)
+    busdc_terminal_2 = _PM.var(pm, nw, :vdcm, pfc_terminal_2)
 
     JuMP.@constraint(pm.model, busdc_terminal_1 - busdc_terminal_2 - duty_cycle*c_voltage == 0)
 end
@@ -109,8 +128,8 @@ end
 function constraint_voltage_terminal_3_pfc(pm, nw, i, pfc_terminal_1, pfc_terminal_3, idx_terminal_1, idx_terminal_3)
     duty_cycle = _PM.var(pm, nw, :duty_cycle, i)
     c_voltage = _PM.var(pm, nw, :c_voltage, i)
-    busdc_terminal_1 = _PM.var(pm, nw, :busdc, pfc_terminal_1)
-    busdc_terminal_3 = _PM.var(pm, nw, :busdc, pfc_terminal_3)
+    busdc_terminal_1 = _PM.var(pm, nw, :vdcm, pfc_terminal_1)
+    busdc_terminal_3 = _PM.var(pm, nw, :vdcm, pfc_terminal_3)
 
     JuMP.@constraint(pm.model, busdc_terminal_1 - busdc_terminal_3 + (1 - duty_cycle)*c_voltage == 0)
 end

@@ -80,6 +80,9 @@ function build_acdcopf_iv(pm::_PM.AbstractIVRModel)
     end
 
     for i in _PM.ids(pm, :pfc)
-        #PFC constraints
+        constraint_duty_cycle_pfc(pm, i)
+        constraint_pfc_current_balance(pm, i)
+        constraint_voltage_terminal_2_pfc(pm, i)
+        constraint_voltage_terminal_3_pfc(pm, i)
     end
 end

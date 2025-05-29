@@ -36,7 +36,7 @@ function add_ref_dcgrid!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any})
             bus_convs_ac = Dict([(i, []) for (i,bus) in nw_ref[:bus]])
             nw_ref[:bus_convs_ac] = assign_bus_converters!(nw_ref[:convdc], bus_convs_ac, "busac_i")    
 
-            # Bus converters for existing ac buses
+            # Bus converters for existing dc buses
             bus_convs_dc = Dict([(bus["busdc_i"], []) for (i,bus) in nw_ref[:busdc]])
             nw_ref[:bus_convs_dc]= assign_bus_converters!(nw_ref[:convdc], bus_convs_dc, "busdc_i") 
 
@@ -433,7 +433,7 @@ function calc_buspair_parameters(buses, branches, element::String)
     return buspairs
 end
 
-"Add refernce for PFC"
+"Add reference for PFC"
 function ref_add_pfc!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any})
     for (nw, nw_ref) in ref[:it][:pm][:nw]
         if !haskey(nw_ref, :pfc)
