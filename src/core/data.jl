@@ -35,6 +35,9 @@ function process_additional_data!(data; tnep = false)
     if haskey(data, "load_flex")
         process_flexible_demand_data!(data)
     end
+    if haskey(data, "pfc")
+        process_pfc_data!(data)
+    end
     fix_data!(data; tnep = tnep)
     convert_matpowerdcline_to_branchdc!(data)
 end
@@ -225,6 +228,66 @@ function process_flexible_demand_data_multi_network!(data)
     end
     delete!(data, "load_flex")
     return data
+end
+
+function process_pfc_data!(data)
+    if !haskey(data, "multinetwork") || data["multinetwork"] == false
+        to_pu_single_network_pfc!(data)
+        fix_data_single_network_pfc!(data)
+    else
+        to_pu_multi_network_pfc!(data)
+        fix_data_multi_network_pfc!(data)
+    end
+end
+
+function to_pu_single_network_pfc!(data)
+    MVAbase = data["baseMVA"]
+    kVbase = data["basekVdc"]
+    for (i, pfc) in data["pfc"]
+        scale_pfc_data!(pfc, MVAbase)
+        set_pfc_pu_volt!(pfc, kVbase)
+    end
+end
+
+function fix_data_single_network_pfc!(data) # Maybe not needed
+    for (i, pfc) in data["pfc"]
+        pfc["duty_cycle_min"] = 0.01
+        pfc["duty_cycle_max"] = 0.99
+    end
+end
+
+function to_pu_multi_network_pfc!(data)
+    MVAbase = data["baseMVA"]
+    kVbase = data["basekVdc"]
+    for (n, network) in data["nw"]
+        MVAbase = network["baseMVA"]
+        for (i, pfc) in network[n]["pfc"]
+            scale_pfc_data!(pfc, MVAbase)
+            set_pfc_pu_volt!(pfc, kVbase)
+        end
+    end
+end
+
+function fix_data_multi_network_pfc!(data) # Modify similar to single network pfc
+    for (n, network) in data["nw"]
+        for (i, pfc) in network[n]data["pfc"]
+            pfc["duty_cycle_min"] = 0.01
+            pfc["duty_cycle_max"] = 0.99
+        end
+    end
+end
+
+function scale_pfc_data!(pst, MVAbase) # pu conversion only needed to capacitor voltage and power limits
+    rescale_power = x -> x/MVAbase
+    _PM._apply_func!(pfc, "rate_a", rescale_power)
+    _PM._apply_func!(pst, "rate_b", rescale_power)
+    _PM._apply_func!(pst, "rate_c", rescale_power)
+end
+
+function set_pfc_pu_volt!(pfc, kVbase)
+    rescale_volt = x -> x  / (kVbase)
+    _PM._apply_func!(pfc, "c_voltage_min", rescale_volt)
+    _PM._apply_func!(pfc, "c_voltage_max", rescale_volt)
 end
 
 function is_single_network(data)
