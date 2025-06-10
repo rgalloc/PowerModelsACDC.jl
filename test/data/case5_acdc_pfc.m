@@ -72,14 +72,13 @@ mpc.convdc = [
 %% branches
 %column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB   rateC   status
 mpc.branchdc = [
-    4       2       0.052   0   0    100     100     100     1;
+    5       2       0.052   0   0    100     100     100     1;
     2       3       0.052   0   0    100     100     100     1;
-    5       3       0.073   0   0    100     100     100     1;
-%		1       3       0.073   0   0    100     100     100     0;
+    4       3       0.073   0   0    100     100     100     1;
  ];
 
 %% pfc
-%column_names% terminal1_bus terminal2_bus terminal3_bus c_voltage_min c_voltage_max duty_cycle_min duty_cycle_max pfc_current_min pfc_current_max status
+%column_names% terminal1_bus terminal2_bus terminal3_bus c_voltage_min c_voltage_max duty_cycle_min duty_cycle_max pfc_current_min pfc_current_max pfc_status
 mpc.pfc = [
     1       4       5       -4     4     0.0     1.0     -120    120 1;
 ];
