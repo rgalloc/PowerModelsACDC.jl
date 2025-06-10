@@ -366,7 +366,7 @@ function ref_add_sssc!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any})
     for (nw, nw_ref) in ref[:it][:pm][:nw]
         if !haskey(nw_ref, :sssc)
             nw_ref[:sssc] = Dict()
-            Memento.warn(_LOGGER, "required pst data not found")
+            Memento.warn(_LOGGER, "required sssc data not found")
         end
 
         nw_ref[:sssc] = Dict(x for x in nw_ref[:sssc] if (x.second["sssc_status"] == 1 && x.second["f_bus"] in keys(nw_ref[:bus]) && x.second["t_bus"] in keys(nw_ref[:bus])))

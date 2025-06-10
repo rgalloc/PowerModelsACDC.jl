@@ -2,6 +2,7 @@ using PowerModels ; const _PM = PowerModels
 using PowerModelsACDC ; const _PMACDC = PowerModelsACDC
 using JuMP
 using Ipopt
+using Plots
 
 # Testing PFC addition 
 
@@ -20,19 +21,406 @@ resultIVR = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s
 ## Data with PFC added
 data = _PM.parse_file("./test/data/case5_acdc_pfc.m")
 
-data["pfc"] = Dict( "1" => Dict(
-                                "pfc_status" => 1,
-                                "terminal1_bus"  => 1,
-                                "terminal2_bus"  => 4,
-                                "terminal3_bus"  => 5,
-                                "c_voltage_min"  => -4/345,
-                                "c_voltage_max"  =>  4/345,
-                                "duty_cycle_min" => 0.01,
-                                "duty_cycle_max" => 0.99,
-                                "pfc_current_min" => -1.2,
-                                "pfc_current_max" => 1.2
-                                    )
-                    )
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_PFC = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+## Printing results
+println("Results without PFC")
+println("Objective: ", resultIVR["objective"])
+println("Termination status: ", resultIVR["termination_status"])
+println("Results with PFC")
+println("Objective: ", resultIVR_PFC["objective"])
+println("Termination status: ", resultIVR_PFC["termination_status"])
+
+error = resultIVR_PFC["objective"] - resultIVR["objective"]
+
+solution_1 = resultIVR["solution"]
+solution_2 = resultIVR_PFC["solution"]
+
+
+branchdc_1 = solution_1["branchdc"]
+branchdc_2 = solution_2["branchdc"] 
+
+busdc_1 = solution_1["busdc"]
+busdc_2 = solution_2["busdc"]
+
+solution_2["pfc"]
+
+branch_1 = solution_1["branch"]
+branch_2 = solution_2["branch"]
+
+ac_from = []
+ac_to = []
+
+for (i, branch) in branch_1
+    push!(ac_from, (i, branch["pf"]))  # Save index and pf as a tuple
+    push!(ac_to, (i, branch["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from = [t[1] for t in ac_from]  # Extract indices from ac_from
+values_from = [t[2] for t in ac_from]   # Extract pf values from ac_from
+
+indices_to = [t[1] for t in ac_to]      # Extract indices from ac_to
+values_to = [t[2] for t in ac_to]       # Extract pt values from ac_to
+
+# Plot the values
+scatter(indices_from, values_from, label="pf (from)", xlabel="Branch Index", ylabel="Power Flow", title="Power Flow in AC branches")
+
+ac_from_pfc = []
+ac_to_pfc = []
+
+for (i, branch) in branch_2
+    push!(ac_from_pfc, (i, branch["pf"]))  # Save index and pf as a tuple
+    push!(ac_to_pfc, (i, branch["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from_pfc = [t[1] for t in ac_from_pfc]  # Extract indices from ac_from
+values_from_pfc = [t[2] for t in ac_from_pfc]   # Extract pf values from ac_from
+
+indices_to_pfc = [t[1] for t in ac_to_pfc]      # Extract indices from ac_to
+values_to_pfc = [t[2] for t in ac_to_pfc]       # Extract pt values from ac_to
+
+# Plot the values
+#scatter(indices_from, values_from, label="pf (from)", xlabel="Branch Index", ylabel="Power Flow", title="Power Flow in AC branches")
+#plot!(indices_to, values_to, label="pt (to)")
+scatter!(indices_from_pfc, values_from_pfc, label="pf (from) PFC")
+
+
+## Without PFC ##
+# OF = 194.16396546937983
+## With PFC ##
+# OF = 194.16396531945702
+
+## Adding congestion to the system
+## All dc line capacity reduced from 100 MW to 30 MW
+
+# No PFC
+
+data = _PM.parse_file("./test/data/case5_acdc.m")
+
+data["branchdc"]["1"]["rateA"] = 30
+data["branchdc"]["2"]["rateA"] = 30
+data["branchdc"]["3"]["rateA"] = 30
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+# PFC
+
+data = _PM.parse_file("./test/data/case5_acdc_pfc.m")
+
+data["branchdc"]["1"]["rateA"] = 30
+data["branchdc"]["2"]["rateA"] = 30
+data["branchdc"]["3"]["rateA"] = 30
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_PFC = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+println("Results without PFC")
+println("Objective: ", resultIVR["objective"])
+println("Termination status: ", resultIVR["termination_status"])
+println("Results with PFC")
+println("Objective: ", resultIVR_PFC["objective"])
+println("Termination status: ", resultIVR_PFC["termination_status"])
+
+solution_1 = resultIVR["solution"]
+solution_2 = resultIVR_PFC["solution"]
+
+branchdc_1 = solution_1["branchdc"]
+
+branchdc_2 = solution_2["branchdc"]
+
+solution_2["pfc"]
+
+branch_1 = solution_1["branch"]
+branch_2 = solution_2["branch"]
+
+ac_from = []
+ac_to = []
+
+for (i, branch) in branch_1
+    push!(ac_from, (i, branch["pf"]))  # Save index and pf as a tuple
+    push!(ac_to, (i, branch["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from = [t[1] for t in ac_from]  # Extract indices from ac_from
+values_from = [t[2] for t in ac_from]   # Extract pf values from ac_from
+
+indices_to = [t[1] for t in ac_to]      # Extract indices from ac_to
+values_to = [t[2] for t in ac_to]       # Extract pt values from ac_to
+
+# Plot the values
+scatter(indices_from, values_from, label="pf (from)", xlabel="Branch Index", ylabel="Power Flow", title="Power Flow in AC branches")
+
+ac_from_pfc = []
+ac_to_pfc = []
+
+for (i, branch) in branch_2
+    push!(ac_from_pfc, (i, branch["pf"]))  # Save index and pf as a tuple
+    push!(ac_to_pfc, (i, branch["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from_pfc = [t[1] for t in ac_from_pfc]  # Extract indices from ac_from
+values_from_pfc = [t[2] for t in ac_from_pfc]   # Extract pf values from ac_from
+
+indices_to_pfc = [t[1] for t in ac_to_pfc]      # Extract indices from ac_to
+values_to_pfc = [t[2] for t in ac_to_pfc]       # Extract pt values from ac_to
+
+# Plot the values
+#scatter(indices_from, values_from, label="pf (from)", xlabel="Branch Index", ylabel="Power Flow", title="Power Flow in AC branches")
+#plot!(indices_to, values_to, label="pt (to)")
+scatter!(indices_from_pfc, values_from_pfc, label="pf (from) PFC")
+
+
+## N-1 condition in the system
+
+# Line 2 disconnected
+
+# No PFC
+
+data = _PM.parse_file("./test/data/case5_acdc.m")
+
+data["branchdc"]["2"]["status"] = 0
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+# PFC
+
+data = _PM.parse_file("./test/data/case5_acdc_pfc.m")
+
+data["branchdc"]["2"]["status"] = 0
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_PFC = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+println("Results without PFC")
+println("Objective: ", resultIVR["objective"])
+println("Termination status: ", resultIVR["termination_status"])
+println("Results with PFC")
+println("Objective: ", resultIVR_PFC["objective"])
+println("Termination status: ", resultIVR_PFC["termination_status"])
+
+
+solution_1 = resultIVR["solution"]
+solution_2 = resultIVR_PFC["solution"]
+
+branchdc_1 = solution_1["branchdc"]
+branchdc_2 = solution_2["branchdc"]
+
+dc_from = []
+dc_to = []
+
+for (i, branchdc) in branchdc_1
+    push!(dc_from, (i, branchdc["pf"]))  # Save index and pf as a tuple
+    push!(dc_to, (i, branchdc["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from = [t[1] for t in dc_from]  # Extract indices from ac_from
+values_from = [t[2] for t in dc_from]   # Extract pf values from ac_from
+
+indices_to = [t[1] for t in dc_to]      # Extract indices from ac_to
+values_to = [t[2] for t in dc_to]       # Extract pt values from ac_to
+
+dc_from_pfc = []
+dc_to_pfc = []
+
+for (i, branchdc) in branchdc_2
+    push!(dc_from_pfc, (i, branchdc["pf"]))  # Save index and pf as a tuple
+    push!(dc_to_pfc, (i, branchdc["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from_pfc = [t[1] for t in dc_from_pfc]  # Extract indices from ac_from
+values_from_pfc = [t[2] for t in dc_from_pfc]   # Extract pf values from ac_from
+
+indices_to_pfc = [t[1] for t in dc_to_pfc]      # Extract indices from ac_to
+values_to_pfc = [t[2] for t in dc_to_pfc]       # Extract pt values from ac_to
+
+# Plot the values
+scatter(indices_from, values_from, label="pf (from)", xlabel="Branch Index", ylabel="Power Flow", title="Power Flow in DC branches")
+scatter!(indices_from_pfc, values_from_pfc, label="pf (from) PFC")
+
+branch_1 = solution_1["branch"]
+branch_2 = solution_2["branch"]
+
+ac_from = []
+ac_to = []
+
+for (i, branch) in branch_1
+    push!(ac_from, (i, branch["pf"]))  # Save index and pf as a tuple
+    push!(ac_to, (i, branch["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from = [t[1] for t in ac_from]  # Extract indices from ac_from
+values_from = [t[2] for t in ac_from]   # Extract pf values from ac_from
+
+indices_to = [t[1] for t in ac_to]      # Extract indices from ac_to
+values_to = [t[2] for t in ac_to]       # Extract pt values from ac_to
+
+# Plot the values
+scatter(indices_from, values_from, label="pf (from)", xlabel="Branch Index", ylabel="Power Flow", title="Power Flow in AC branches")
+
+
+
+ac_from_pfc = []
+ac_to_pfc = []
+
+for (i, branch) in branch_2
+    push!(ac_from_pfc, (i, branch["pf"]))  # Save index and pf as a tuple
+    push!(ac_to_pfc, (i, branch["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from_pfc = [t[1] for t in ac_from_pfc]  # Extract indices from ac_from
+values_from_pfc = [t[2] for t in ac_from_pfc]   # Extract pf values from ac_from
+
+indices_to_pfc = [t[1] for t in ac_to_pfc]      # Extract indices from ac_to
+values_to_pfc = [t[2] for t in ac_to_pfc]       # Extract pt values from ac_to
+
+# Plot the values
+#scatter(indices_from, values_from, label="pf (from)", xlabel="Branch Index", ylabel="Power Flow", title="Power Flow in AC branches")
+#plot!(indices_to, values_to, label="pt (to)")
+scatter!(indices_from_pfc, values_from_pfc, label="pf (from) PFC")
+
+total_gen = solution_1["gen"]["1"]["pg"] + solution_2["gen"]["1"]["pg"]
+total_load = 
+
+
+solution_2["pfc"]
+
+## Increased demand in the system with reduced capacity
+
+# No PFC
+
+data = _PM.parse_file("./test/data/case5_acdc.m")
+
+data["branchdc"]["1"]["rateA"] = 30
+data["branchdc"]["2"]["rateA"] = 30
+data["branchdc"]["3"]["rateA"] = 30
+
+data["load"]["1"]["pd"] = data["load"]["1"]["pd"]*1.2
+data["load"]["2"]["pd"] = data["load"]["2"]["pd"]*1.2
+data["load"]["3"]["pd"] = data["load"]["3"]["pd"]*1.2
+data["load"]["4"]["pd"] = data["load"]["4"]["pd"]*1.2
+
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+# PFC
+
+data = _PM.parse_file("./test/data/case5_acdc_pfc.m")
+
+data["branchdc"]["1"]["rateA"] = 30
+data["branchdc"]["2"]["rateA"] = 30
+data["branchdc"]["3"]["rateA"] = 30
+
+data["load"]["1"]["pd"] = data["load"]["1"]["pd"]*1.2
+data["load"]["2"]["pd"] = data["load"]["2"]["pd"]*1.2
+data["load"]["3"]["pd"] = data["load"]["3"]["pd"]*1.2
+data["load"]["4"]["pd"] = data["load"]["4"]["pd"]*1.2
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_PFC = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+println("Results without PFC")
+println("Objective: ", resultIVR["objective"])
+println("Termination status: ", resultIVR["termination_status"])
+println("Results with PFC")
+println("Objective: ", resultIVR_PFC["objective"])
+println("Termination status: ", resultIVR_PFC["termination_status"])
+
+solution_1 = resultIVR["solution"]
+solution_2 = resultIVR_PFC["solution"]
+
+branchdc_1 = solution_1["branchdc"]
+
+branchdc_2 = solution_2["branchdc"]
+
+solution_2["pfc"]
+
+branch_1 = solution_1["branch"]
+
+ac_from = []
+ac_to = []
+
+for (i, branch) in branch_1
+    push!(ac_from, (i, branch["pf"]))  # Save index and pf as a tuple
+    push!(ac_to, (i, branch["pt"]))    # Save index and pt as a tuple
+end
+
+# Extract indices and values from the tuples
+indices_from = [t[1] for t in ac_from]  # Extract indices from ac_from
+values_from = [t[2] for t in ac_from]   # Extract pf values from ac_from
+
+indices_to = [t[1] for t in ac_to]      # Extract indices from ac_to
+values_to = [t[2] for t in ac_to]       # Extract pt values from ac_to
+
+# Plot the values
+scatter(indices_from, values_from, label="pf (from)", xlabel="Branch Index", ylabel="Power Flow", title="Power Flow in AC branches")
+#plot!(indices_to, values_to, label="pt (to)")
+
+branch_2 = solution_2["branch"]
+
+
+### PFC in new location (DC Bus 2)
+
+## Data with no PFC added 
+
+data = _PM.parse_file("./test/data/case5_acdc.m")
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+## Data with PFC added
+data = _PM.parse_file("./test/data/case5_acdc_pfc_2.m")
 
 _PMACDC.process_additional_data!(data)
 
@@ -50,17 +438,17 @@ println("Results with PFC")
 println("Objective: ", resultIVR_PFC["objective"])
 println("Termination status: ", resultIVR_PFC["termination_status"])
 
+solution_1 = resultIVR["solution"]
+solution_2 = resultIVR_PFC["solution"]
 
 
+branchdc_1 = solution_1["branchdc"]
+branchdc_2 = solution_2["branchdc"] 
 
+busdc_1 = solution_1["busdc"]
+busdc_2 = solution_2["busdc"]
 
-
-
-
-
-
-
-
+solution_2["pfc"]
 
 
 

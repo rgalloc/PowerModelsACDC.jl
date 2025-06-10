@@ -56,6 +56,8 @@ mpc.busdc = [
     1              1       0       1       345         1.1     0.9     0;
     2              1       0       1       345         1.1     0.9     0;
 	3              1       0       1       345         1.1     0.9     0;
+    4              1       0       1       345         1.1     0.9     0;
+    5              1       0       1       345         1.1     0.9     0;
 ];
 
 %% converters
@@ -69,10 +71,16 @@ mpc.convdc = [
 %% branches
 %column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB   rateC   status
 mpc.branchdc = [
-    1       2       0.052   0   0    100     100     100     1;
-    2       3       0.052   0   0    100     100     100     1;
+    1       5       0.052   0   0    100     100     100     1;
+    4       3       0.052   0   0    100     100     100     1;
     1       3       0.073   0   0    100     100     100     1;
  ];
+
+%% pfc
+%column_names% terminal1_bus terminal2_bus terminal3_bus c_voltage_min c_voltage_max duty_cycle_min duty_cycle_max pfc_current_min pfc_current_max pfc_status
+mpc.pfc = [
+    2       4       5       -4     4     0.0     1.0     -120    120 1;
+];
 
 %% generator cost data
 %	1	startup	shutdown	n	x1	y1	...	xn	yn

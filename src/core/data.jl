@@ -242,7 +242,7 @@ end
 
 function to_pu_single_network_pfc!(data)
     MVAbase = data["baseMVA"]
-    kVbase = data["basekVdc"]
+    kVbase = 345
     for (i, pfc) in data["pfc"]
         scale_pfc_data!(pfc, MVAbase)
         set_pfc_pu_volt!(pfc, kVbase)
@@ -277,11 +277,10 @@ function fix_data_multi_network_pfc!(data) # Modify similar to single network pf
     end
 end
 
-function scale_pfc_data!(pst, MVAbase) # pu conversion only needed to capacitor voltage and power limits
+function scale_pfc_data!(pfc, MVAbase) # pu conversion only needed to capacitor voltage and power limits
     rescale_power = x -> x/MVAbase
-    _PM._apply_func!(pfc, "rate_a", rescale_power)
-    _PM._apply_func!(pst, "rate_b", rescale_power)
-    _PM._apply_func!(pst, "rate_c", rescale_power)
+    _PM._apply_func!(pfc, "pfc_current_min", rescale_power)
+    _PM._apply_func!(pfc, "pfc_current_max", rescale_power)
 end
 
 function set_pfc_pu_volt!(pfc, kVbase)
