@@ -104,7 +104,7 @@ function constraint_duty_cycle_pfc(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_term
     I3 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_3,pfc_terminal_1))
 
     #JuMP.@constraint(pm.model, duty_cycle - abs(I3)/(abs(I2) + abs(I3) + 1e-6) == 0) # 1e-6 to avoid division by zero
-    JuMP.@constraint(pm.model, duty_cycle - abs(I3)/(abs(I2) + abs(I3)) == 0)
+    JuMP.@constraint(pm.model, duty_cycle - abs(I3)/(abs(I2) + abs(I3)) == 0) # Should change to consider the current direction
 end
 
 function constraint_pfc_current_balance(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_terminal_2, pfc_terminal_3)
