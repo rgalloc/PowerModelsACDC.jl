@@ -96,6 +96,21 @@ function constraint_pfc_current_balance(pm::_PM.AbstractIVRModel, i::Int; nw::In
     constraint_pfc_current_balance(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_terminal_2, pfc_terminal_3)
 end
 
+## Extra constraint for uni-directionality
+#TBD
+function constraint_pfc_uni_directionality(pm::_PM.AbstractIVRModel, i::Int; nw::Int=_PM.nw_id_default)
+    pfc = _PM.ref(pm, nw, :pfc, i) 
+    arcs_pfc = _PM.ref(pm, nw, :arcs_pfc)
+    pfc_terminal_1 = pfc["terminal1_bus"]
+    pfc_terminal_2 = pfc["terminal2_bus"]
+    pfc_terminal_3 = pfc["terminal3_bus"]
+
+    # This constraint is to ensure that the current flows in one direction
+    # It is not needed if the current is already defined as uni-directional
+    constraint_pfc_current_balance(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_terminal_2, pfc_terminal_3)
+end
+
+
 ## Associated constraints
 function constraint_duty_cycle_pfc(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc_terminal_2, pfc_terminal_3)
     duty_cycle = _PM.var(pm, nw, :duty_cycle, i)

@@ -451,7 +451,549 @@ busdc_2 = solution_2["busdc"]
 solution_2["pfc"]
 
 
+#######
+### Test with 67-bus system
 
+data1 = _PM.parse_file("./test/data/case67.m")
+
+_PMACDC.process_additional_data!(data1)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
+
+
+
+
+### Test with 67-bus system with PFC in DC bus 1
+data2 = _PM.parse_file("./test/data/case67_PFC.m")
+
+_PMACDC.process_additional_data!(data2)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+resultIVR_67_PFC["solution"]["pfc"]
+
+diff = (resultIVR_67["objective"] - resultIVR_67_PFC["objective"])#/ resultIVR_67["objective"]
+
+print("######################################################################################\n")
+print("DC Branch Loadings NO PFC\n")
+print("######################################################################################\n")
+
+loading1 = compute_branch_loading(resultIVR_67, data1)
+
+for (branchdc_id, branchdc) in loading1["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loadings with PFC\n")
+print("######################################################################################\n")
+
+loading2 = compute_branch_loading(resultIVR_67_PFC, data2)
+
+for (branchdc_id, branchdc) in loading2["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loading Comparison\n")
+print("######################################################################################\n")
+
+comparison = compare_branch_loading(loading1, loading2)
+for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+    println("DC Branch $branchdc_id: No PFC = $load1, With PFC = $load2, Delta = $delta")
+end
+
+### Creating congestion with N-1 condition in the system
+
+## DC Branch 2 disconnected
+
+## No PFC
+data1 = _PM.parse_file("./test/data/case67.m")
+
+data1["branchdc"]["2"]["status"] = 0
+
+_PMACDC.process_additional_data!(data1)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
+
+## With PFC
+data2 = _PM.parse_file("./test/data/case67_PFC.m")
+
+data2["branchdc"]["2"]["status"] = 0
+
+_PMACDC.process_additional_data!(data2)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+diff = (resultIVR_67["objective"] - resultIVR_67_PFC["objective"])#/ resultIVR_67["objective"]
+
+print("######################################################################################\n")
+print("DC Branch Loadings NO PFC\n")
+print("######################################################################################\n")
+
+loading1 = compute_branch_loading(resultIVR_67, data1)
+
+# for (branch_id, branch) in loading1["AC"]
+#     println("AC Branch $branch_id loading: $branch")
+# end
+
+for (branchdc_id, branchdc) in loading1["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loadings WITH PFC\n")
+print("######################################################################################\n")
+
+loading2 = compute_branch_loading(resultIVR_67_PFC, data2)
+
+# for (branch_id, branch) in loading2["AC"]
+#     println("AC Branch $branch_id loading: $branch")
+# end
+
+for (branchdc_id, branchdc) in loading2["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loading Comparison\n")
+print("######################################################################################\n")
+
+comparison = compare_branch_loading(loading1, loading2)
+println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+    #println("DC Branch $branchdc_id: Load1 = $load1, Load2 = $load2, Delta = $delta")
+    #println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+    println("$branchdc_id, $load1, $load2, $delta")
+end
+
+## DC Branch 3 disconnected
+
+## No PFC
+data1 = _PM.parse_file("./test/data/case67.m")
+
+data1["branchdc"]["3"]["status"] = 0
+
+_PMACDC.process_additional_data!(data1)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
+
+## With PFC
+data2 = _PM.parse_file("./test/data/case67_PFC.m")
+
+data2["branchdc"]["3"]["status"] = 0
+
+_PMACDC.process_additional_data!(data2)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+diff = (resultIVR_67["objective"] - resultIVR_67_PFC["objective"])#/ resultIVR_67["objective"]
+
+print("######################################################################################\n")
+print("DC Branch Loadings NO PFC\n")
+print("######################################################################################\n")
+
+loading1 = compute_branch_loading(resultIVR_67, data1)
+
+# for (branch_id, branch) in loading1["AC"]
+#     println("AC Branch $branch_id loading: $branch")
+# end
+
+for (branchdc_id, branchdc) in loading1["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loadings WITH PFC\n")
+print("######################################################################################\n")
+
+loading2 = compute_branch_loading(resultIVR_67_PFC, data2)
+
+# for (branch_id, branch) in loading2["AC"]
+#     println("AC Branch $branch_id loading: $branch")
+# end
+
+for (branchdc_id, branchdc) in loading2["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loading Comparison\n")
+print("######################################################################################\n")
+
+comparison = compare_branch_loading(loading1, loading2)
+println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+    println("$branchdc_id, $load1, $load2, $delta")
+end
+
+
+
+### Test with 67-bus system with PFC in DC bus 6
+data1 = _PM.parse_file("./test/data/case67.m")
+
+_PMACDC.process_additional_data!(data1)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
+
+
+data2 = _PM.parse_file("./test/data/case67_PFC2.m")
+
+_PMACDC.process_additional_data!(data2)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+resultIVR_67_PFC["solution"]["pfc"]
+
+diff = (resultIVR_67["objective"] - resultIVR_67_PFC["objective"])#/ resultIVR_67["objective"]
+
+print("######################################################################################\n")
+print("DC Branch Loadings NO PFC\n")
+print("######################################################################################\n")
+
+loading1 = compute_branch_loading(resultIVR_67, data1)
+
+for (branchdc_id, branchdc) in loading1["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loadings with PFC\n")
+print("######################################################################################\n")
+
+loading2 = compute_branch_loading(resultIVR_67_PFC, data2)
+
+for (branchdc_id, branchdc) in loading2["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loading Comparison\n")
+print("######################################################################################\n")
+
+comparison = compare_branch_loading(loading1, loading2)
+println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+    println("$branchdc_id, $load1, $load2, $delta")
+end
+
+### Adding congestion to the system with N-1 condition
+# DC Branch 3 disconnected
+
+data1 = _PM.parse_file("./test/data/case67.m")
+data1["branchdc"]["3"]["status"] = 0
+_PMACDC.process_additional_data!(data1)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
+
+
+data2 = _PM.parse_file("./test/data/case67_PFC2.m")
+data2["branchdc"]["3"]["status"] = 0
+_PMACDC.process_additional_data!(data2)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+resultIVR_67_PFC["solution"]["pfc"]
+
+diff = (resultIVR_67["objective"] - resultIVR_67_PFC["objective"])#/ resultIVR_67["objective"]
+
+print("######################################################################################\n")
+print("DC Branch Loadings NO PFC\n")
+print("######################################################################################\n")
+
+loading1 = compute_branch_loading(resultIVR_67, data1)
+
+for (branchdc_id, branchdc) in loading1["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loadings with PFC\n")
+print("######################################################################################\n")
+
+loading2 = compute_branch_loading(resultIVR_67_PFC, data2)
+
+for (branchdc_id, branchdc) in loading2["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loading Comparison\n")
+print("######################################################################################\n")
+
+comparison = compare_branch_loading(loading1, loading2)
+println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+    println("$branchdc_id, $load1, $load2, $delta")
+end
+
+# DC Branch 7 disconnected
+
+data1 = _PM.parse_file("./test/data/case67.m")
+data1["branchdc"]["7"]["status"] = 0
+_PMACDC.process_additional_data!(data1)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
+
+
+data2 = _PM.parse_file("./test/data/case67_PFC2.m")
+data2["branchdc"]["7"]["status"] = 0
+_PMACDC.process_additional_data!(data2)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+resultIVR_67_PFC["solution"]["pfc"]
+
+diff = (resultIVR_67["objective"] - resultIVR_67_PFC["objective"])#/ resultIVR_67["objective"]
+
+print("######################################################################################\n")
+print("DC Branch Loadings NO PFC\n")
+print("######################################################################################\n")
+
+loading1 = compute_branch_loading(resultIVR_67, data1)
+
+for (branchdc_id, branchdc) in loading1["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loadings with PFC\n")
+print("######################################################################################\n")
+
+loading2 = compute_branch_loading(resultIVR_67_PFC, data2)
+
+for (branchdc_id, branchdc) in loading2["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loading Comparison\n")
+print("######################################################################################\n")
+
+comparison = compare_branch_loading(loading1, loading2)
+println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+    println("$branchdc_id, $load1, $load2, $delta")
+end
+
+
+###################################
+###################################
+###################################
+
+#### Iteratively PFC running with PFC location and N-1 contingency
+
+###################################
+###################################
+###################################
+
+# OPF for NO PFC case and all N-1 contingencies in the DC grid
+
+OF = Dict()
+#Base case - no PFC
+data1 = _PM.parse_file("./test/data/case67.m")
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+for (branchdc_id,branchdc) in data1["branchdc"]
+    data_run = deepcopy(data1)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67 = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    OF["$branchdc_id"] = resultIVR_67["objective"]
+end
+
+# OPF for PFC in bus 1
+
+OF_1 = Dict()
+data2 = _PM.parse_file("./test/data/case67_PFC.m")
+
+for (branchdc_id,branchdc) in data2["branchdc"]
+    data_run = deepcopy(data2)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    OF_1["$branchdc_id"] = resultIVR_67_PFC["objective"]
+end
+
+
+
+
+
+# Function to compute branch loading for AC and DC branches
+function compute_branch_loading(result,data)
+    loading = Dict("AC" => Dict(), "DC" => Dict())
+    # AC Branches
+    for (branch_id, branch) in result["solution"]["branch"]
+        branch_rate = data["branch"]["$branch_id"]["rate_a"]
+        #from
+        branch_p_from = branch["pf"]
+        branch_q_from = branch["qf"]
+        branch_s_from = sqrt(branch_p_from^2 + branch_q_from^2)
+        #to
+        branch_p_to = branch["pt"]
+        branch_q_to = branch["qt"]
+        branch_s_to = sqrt(branch_p_to^2 + branch_q_to^2)
+
+        branch_s = max(branch_s_from, branch_s_to)
+        loading["AC"]["$branch_id"] = branch_s/branch_rate
+    end
+    # DC Branches
+    for (branchdc_id, branchdc) in result["solution"]["branchdc"]
+        branchdc_rate = data["branchdc"]["$branchdc_id"]["rateA"]
+        #from
+        branchdc_p_from = abs(branchdc["pf"])
+        #to
+        branchdc_p_to = abs(branchdc["pt"])
+
+        branchdc_p = max(branchdc_p_from, branchdc_p_to)
+        loading["DC"]["$branchdc_id"] = branchdc_p/branchdc_rate
+    end
+    return loading
+end
+
+function compare_branch_loading(loading1, loading2)
+    comparison = Dict("AC" => Dict(), "DC" => Dict())
+    # AC Branches
+    for (branch_id, load1) in loading1["AC"]
+        load2 = get(loading2["AC"], branch_id, 0.0)
+        delta = load2 - load1
+        #comparison["AC"]["$branch_id"] = (load1, load2, load2/load1)
+        comparison["AC"]["$branch_id"] = (load1, load2, delta)
+    end
+    # DC Branches
+    for (branchdc_id, load1) in loading1["DC"]
+        load2 = get(loading2["DC"], branchdc_id, 0.0)
+        delta = load2 - load1
+        comparison["DC"]["$branchdc_id"] = (load1, load2, delta)
+    end
+    return comparison
+end
+
+
+# print("######################################################################################\n")
+# print("AC Branch Loadings\n")
+# print("######################################################################################\n")
+
+# for (branch_id, branch) in resultIVR_67["solution"]["branch"]
+#     branch_rate = data["branch"]["$branch_id"]["rate_a"]
+#     #from
+#     branch_p_from = branch["pf"]
+#     branch_q_from = branch["qf"]
+#     branch_s_from = sqrt(branch_p_from^2 + branch_q_from^2)
+#     #to
+#     branch_p_to = branch["pt"]
+#     branch_q_to = branch["qt"]
+#     branch_s_to = sqrt(branch_p_to^2 + branch_q_to^2)
+
+#     branch_s = max(branch_s_from, branch_s_to)
+#     loading = branch_s/branch_rate
+#     println("AC Branch $branch_id loading: $loading")
+# end
+
+
+# print("######################################################################################\n")
+# print("DC Branch Loadings\n")
+# print("######################################################################################\n")
+
+# for (branchdc_id, branchdc) in resultIVR_67["solution"]["branchdc"]
+#     branchdc_rate = data["branchdc"]["$branchdc_id"]["rateA"]
+#     #from
+#     branchdc_p_from = abs(branchdc["pf"])
+#     #to
+#     branchdc_p_to = abs(branchdc["pt"])
+
+#     branchdc_p = max(branchdc_p_from, branchdc_p_to)
+#     loading = branchdc_p/branchdc_rate
+#     println("DC Branch $branchdc_id loading: $loading")
+# end
+
+### Calculate the loading of the lines AC and DC
+
+# print("######################################################################################\n")
+# print("AC Branch Loadings\n")
+# print("######################################################################################\n")
+# for (branch_id, branch) in resultIVR_67_PFC["solution"]["branch"]
+#     branch_rate = data["branch"]["$branch_id"]["rate_a"]
+#     #from
+#     branch_p_from = branch["pf"]
+#     branch_q_from = branch["qf"]
+#     branch_s_from = sqrt(branch_p_from^2 + branch_q_from^2)
+#     #to
+#     branch_p_to = branch["pt"]
+#     branch_q_to = branch["qt"]
+#     branch_s_to = sqrt(branch_p_to^2 + branch_q_to^2)
+
+#     branch_s = max(branch_s_from, branch_s_to)
+#     loading = branch_s/branch_rate
+#     println("AC Branch $branch_id loading: $loading")
+# end
+# print("######################################################################################\n")
+# print("DC Branch Loadings\n")
+# print("######################################################################################\n")
+# for (branchdc_id, branchdc) in resultIVR_67_PFC["solution"]["branchdc"]
+#     branchdc_rate = data["branchdc"]["$branchdc_id"]["rateA"]
+#     #from
+#     branchdc_p_from = abs(branchdc["pf"])
+#     #to
+#     branchdc_p_to = abs(branchdc["pt"])
+
+#     branchdc_p = max(branchdc_p_from, branchdc_p_to)
+#     loading = branchdc_p/branchdc_rate
+#     println("DC Branch $branchdc_id loading: $loading")
+# end
 
 
 # data = _PM.parse_file("./test/data/case5_acdc.m")
