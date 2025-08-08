@@ -651,10 +651,76 @@ for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
     println("$branchdc_id, $load1, $load2, $delta")
 end
 
+## DC Branch 1 disconnected
 
+## No PFC
+data1 = _PM.parse_file("./test/data/case67.m")
+
+data1["branchdc"]["5"]["status"] = 0
+
+_PMACDC.process_additional_data!(data1)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
+
+## With PFC
+data2 = _PM.parse_file("./test/data/case67_PFC.m")
+
+data2["branchdc"]["5"]["status"] = 0
+
+_PMACDC.process_additional_data!(data2)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+diff = (resultIVR_67["objective"] - resultIVR_67_PFC["objective"])#/ resultIVR_67["objective"]
+
+print("######################################################################################\n")
+print("DC Branch Loadings NO PFC\n")
+print("######################################################################################\n")
+
+loading1 = compute_branch_loading(resultIVR_67, data1)
+
+# for (branch_id, branch) in loading1["AC"]
+#     println("AC Branch $branch_id loading: $branch")
+# end
+
+for (branchdc_id, branchdc) in loading1["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loadings WITH PFC\n")
+print("######################################################################################\n")
+
+loading2 = compute_branch_loading(resultIVR_67_PFC, data2)
+
+# for (branch_id, branch) in loading2["AC"]
+#     println("AC Branch $branch_id loading: $branch")
+# end
+
+for (branchdc_id, branchdc) in loading2["DC"]
+    println("DC Branch $branchdc_id loading: $branchdc")
+end
+
+print("######################################################################################\n")
+print("DC Branch Loading Comparison\n")
+print("######################################################################################\n")
+
+comparison = compare_branch_loading(loading1, loading2)
+println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+    println("$branchdc_id, $load1, $load2, $delta")
+end
 
 ### Test with 67-bus system with PFC in DC bus 6
-data1 = _PM.parse_file("./test/data/case67.m")
+data1 = _PM.parse_file("./test/data/PFC/case67.m")
 
 _PMACDC.process_additional_data!(data1)
 
@@ -665,7 +731,7 @@ s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
 resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
 
 
-data2 = _PM.parse_file("./test/data/case67_PFC2.m")
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B6.m")
 
 _PMACDC.process_additional_data!(data2)
 
@@ -837,9 +903,11 @@ end
 
 # OPF for NO PFC case and all N-1 contingencies in the DC grid
 
-OF = Dict()
 #Base case - no PFC
-data1 = _PM.parse_file("./test/data/case67.m")
+OF = Dict()
+PG = Dict()
+data1 = _PM.parse_file("./test/data/PFC/case67.m")
+
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
 ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
 
@@ -850,13 +918,23 @@ for (branchdc_id,branchdc) in data1["branchdc"]
     _PMACDC.process_additional_data!(data_run)
 
     resultIVR_67 = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
-    OF["$branchdc_id"] = resultIVR_67["objective"]
+    if resultIVR_67["termination_status"] == LOCALLY_SOLVED
+        OF["$branchdc_id"] = resultIVR_67["objective"]
+        PG["$branchdc_id"] = Dict()
+        for (g, gen) in resultIVR_67["solution"]["gen"]
+                PG["$branchdc_id"][g] = gen["pg"]
+        end
+    else
+        println("Branch $branchdc_id could not be solved for base case")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF["$branchdc_id"] = NaN
+    end
 end
 
 # OPF for PFC in bus 1
 
 OF_1 = Dict()
-data2 = _PM.parse_file("./test/data/case67_PFC.m")
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B1.m")
 
 for (branchdc_id,branchdc) in data2["branchdc"]
     data_run = deepcopy(data2)
@@ -865,10 +943,266 @@ for (branchdc_id,branchdc) in data2["branchdc"]
     _PMACDC.process_additional_data!(data_run)
 
     resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
-    OF_1["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_1["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    else
+        println("Branch $branchdc_id could not be solved with PFC at DC bus 1")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_1["$branchdc_id"] = NaN
+    end
 end
 
+# OPF for PFC in bus 2
 
+OF_2 = Dict()
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B2.m")
+
+for (branchdc_id,branchdc) in data2["branchdc"]
+    data_run = deepcopy(data2)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_2["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    else
+        println("Branch $branchdc_id could not be solved with PFC at DC bus 2")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_2["$branchdc_id"] = NaN
+    end
+end
+# OPF for PFC in bus 3
+
+OF_3 = Dict()
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B3.m")
+
+for (branchdc_id,branchdc) in data2["branchdc"]
+    data_run = deepcopy(data2)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_3["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    else
+        println("Branch $branchdc_id could not be solved with PFC at DC bus 3")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_3["$branchdc_id"] = NaN
+    end
+end
+# OPF for PFC in bus 4
+
+OF_4 = Dict()
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B4.m")
+
+for (branchdc_id,branchdc) in data2["branchdc"]
+    data_run = deepcopy(data2)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_4["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    else
+        println("Branch $branchdc_id could not be solved with PFC at DC bus 4")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_4["$branchdc_id"] = NaN
+    end
+end
+# OPF for PFC in bus 5
+
+OF_5 = Dict()
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B5.m")
+
+for (branchdc_id,branchdc) in data2["branchdc"]
+    data_run = deepcopy(data2)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_5["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    else
+        println("Branch $branchdc_id could not be solved with PFC at DC bus 5")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_5["$branchdc_id"] = NaN
+    end
+end
+
+# OPF for PFC in bus 6
+
+OF_6 = Dict()
+data6 = _PM.parse_file("./test/data/PFC/case67_PFC_B6.m")
+
+for (branchdc_id,branchdc) in data6["branchdc"]
+    data_run = deepcopy(data6)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_6["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    else
+        println("Branch $branchdc_id could not be solved with PFC at DC bus 6")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_6["$branchdc_id"] = NaN
+    end
+end
+
+# OPF for PFC in bus 7
+
+OF_7 = Dict()
+data7 = _PM.parse_file("./test/data/PFC/case67_PFC_B7.m")
+
+for (branchdc_id,branchdc) in data6["branchdc"]
+    data_run = deepcopy(data7)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_7["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    else
+        println("Branch $branchdc_id could not be solved with PFC at DC bus 7")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_7["$branchdc_id"] = NaN
+    end
+end
+
+# OPF for PFC in bus 8
+
+OF_8 = Dict()
+data8 = _PM.parse_file("./test/data/PFC/case67_PFC_B8.m")
+
+for (branchdc_id,branchdc) in data6["branchdc"]
+    data_run = deepcopy(data8)
+    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_8["$branchdc_id"] = resultIVR_67_PFC["objective"]
+    else
+        println("Branch $branchdc_id could not be solved with PFC at DC bus 8")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_8["$branchdc_id"] = NaN
+    end
+end
+
+# Plotting results
+branch_ids = sort(parse.(Int, collect(keys(OF))))
+values_base = [OF[string(id)] for id in branch_ids]
+values_b1 = [OF_1[string(id)] for id in branch_ids]
+values_b2 = [OF_2[string(id)] for id in branch_ids]
+values_b3 = [OF_3[string(id)] for id in branch_ids]
+values_b4 = [OF_4[string(id)] for id in branch_ids]
+values_b5 = [OF_5[string(id)] for id in branch_ids]
+values_b6 = [OF_6[string(id)] for id in branch_ids]
+values_b7 = [OF_7[string(id)] for id in branch_ids]
+values_b8 = [OF_8[string(id)] for id in branch_ids]
+
+
+println("Branch IDs: ", branch_ids)
+println("Values (Base): ", values_base)
+println("Values (B1): ", values_b1)
+println("Values (B6): ", values_b6)
+
+base_diff = zeros(length(values_base))
+values_b1_diff = [((values_b1[i] - values_base[i])/values_base[i])*-100 for i in 1:length(values_base)]
+values_b2_diff = [((values_b2[i] - values_base[i])/values_base[i])*-100 for i in 1:length(values_base)]
+values_b3_diff = [((values_b3[i] - values_base[i])/values_base[i])*-100 for i in 1:length(values_base)]
+values_b4_diff = [((values_b4[i] - values_base[i])/values_base[i])*-100 for i in 1:length(values_base)]
+values_b5_diff = [((values_b5[i] - values_base[i])/values_base[i])*-100 for i in 1:length(values_base)]
+values_b6_diff = [((values_b6[i] - values_base[i])/values_base[i])*-100 for i in 1:length(values_base)]
+values_b7_diff = [((values_b7[i] - values_base[i])/values_base[i])*-100 for i in 1:length(values_base)]
+values_b8_diff = [((values_b8[i] - values_base[i])/values_base[i])*-100 for i in 1:length(values_base)]
+
+plot_data = hcat(values_b1_diff, 
+                 values_b2_diff, 
+                 values_b3_diff, 
+                 values_b4_diff, 
+                 values_b5_diff, 
+                 values_b6_diff, 
+                 values_b7_diff, 
+                 values_b8_diff)
+
+heatmap(
+    plot_data,
+    xlabel = "PFC location",
+    ylabel = "N-1 contingency",
+    title = "PFC Location vs N-1 Contingency Impact",
+    xticks = (1:8, ["Bus 1", "Bus 2", "Bus 3", "Bus 4", "Bus 5", "Bus 6", "Bus 7", "Bus 8"]),
+    yticks = (1:length(branch_ids), branch_ids),
+    color = :jet,
+    clims = (-1,1)
+)
+savefig("pfc_location_vs_n1_contingency.png")
+
+###############################################################
+###############################################################
+# OPF for NO PFC case and all N-1 contingencies in the AC grid
+###############################################################
+###############################################################
+
+#####################
+# Contingency list 
+AC_branch = ["7","13","26","41","42","45","54","81","82","85","93"]
+
+#Base case - no PFC
+OF = Dict()
+loading = Dict()
+data1 = _PM.parse_file("./test/data/PFC/case67.m")
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+for branch_id in AC_branch
+    data_run = deepcopy(data1)
+    data_run["branch"]["$branch_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67 = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67["termination_status"] == LOCALLY_SOLVED
+        OF["$branch_id"] = resultIVR_67["objective"]
+        loading["$branch_id"] = compute_branch_loading(resultIVR_67, data_run)
+    else
+        println("Branch $branch_id could not be solved for base case")
+        println("Termination status: ", resultIVR_67["termination_status"])
+        OF["$branch_id"] = NaN
+    end
+end
+
+# OPF for PFC in bus 1
+
+OF_1 = Dict()
+loading_1 = Dict()
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B1.m")
+
+for branch_id in AC_branch
+    data_run = deepcopy(data2)
+    data_run["branch"]["$branch_id"]["status"] = 0
+
+    _PMACDC.process_additional_data!(data_run)
+
+    resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+    if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
+        OF_1["$branch_id"] = resultIVR_67_PFC["objective"]
+        loading_1["$branch_id"] = compute_branch_loading(resultIVR_67_PFC, data_run)
+    else
+        println("Branch $branch_id could not be solved with PFC at DC bus 1")
+        println("Termination status: ", resultIVR_67_PFC["termination_status"])
+        OF_1["$branch_id"] = NaN
+        loading_1["$branch_id"] = NaN
+    end
+end
 
 
 
@@ -921,6 +1255,10 @@ function compare_branch_loading(loading1, loading2)
     end
     return comparison
 end
+
+#Testing heatmap
+# test_data = [1 2 3;4 5 6;7 8 9]
+# heatmap(test_data, xlabel="X-axis", ylabel="Y-axis", title="Heatmap Example", color=:heat, aspect_ratio=1)
 
 
 # print("######################################################################################\n")
