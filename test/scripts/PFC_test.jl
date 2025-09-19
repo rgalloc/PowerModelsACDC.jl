@@ -4,7 +4,154 @@ using JuMP
 using Ipopt
 using Plots
 
-# Testing PFC addition 
+## Testing with updated PFC equations
+
+# No PFC
+data = _PM.parse_file("./test/data/case5_acdc.m")
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+# With PFC
+
+data2 = _PM.parse_file("./test/data/case5_acdc_pfc.m")
+
+_PMACDC.process_additional_data!(data2)
+
+resultIVR_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+loading1 = compute_branch_loading(resultIVR, data1)
+loading2 = compute_branch_loading(resultIVR_PFC, data2)
+
+comparison = compare_branch_loading(loading1, loading2)
+
+print("######################################################################################\n")
+print("AC and DC Branch Loading Comparison\n")
+print("######################################################################################\n")
+
+println("AC Branch ------ Load1 ------- Load2 ------- Delta")
+for (branch_id, (load1, load2, delta)) in comparison["AC"]
+    println("$branch_id, $load1, $load2, $delta")
+end
+print("--------------------------------------------------------------------------------------\n")
+println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+    println("$branchdc_id, $load1, $load2, $delta")
+end
+
+print("######################################################################################\n")
+println("Results without PFC")
+println("Objective: ", resultIVR["objective"])
+println("Termination status: ", resultIVR["termination_status"])
+println("Results with PFC")
+println("Objective: ", resultIVR_PFC["objective"])
+println("Termination status: ", resultIVR_PFC["termination_status"])
+
+error = resultIVR_PFC["objective"] - resultIVR["objective"]
+
+#### With congestion
+
+# No PFC
+data = _PM.parse_file("./test/data/case5_acdc.m")
+
+data["branchdc"]["1"]["rateA"] = 30
+#data["branchdc"]["2"]["rateA"] = 30
+#data["branchdc"]["3"]["rateA"] = 30
+
+_PMACDC.process_additional_data!(data)
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
+
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+resultIVR = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+# With PFC
+
+data2 = _PM.parse_file("./test/data/case5_acdc_pfc.m")
+
+data2["branchdc"]["1"]["rateA"] = 30
+#data2["branchdc"]["2"]["rateA"] = 30
+#data2["branchdc"]["3"]["rateA"] = 30
+
+_PMACDC.process_additional_data!(data2)
+
+resultIVR_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+
+## Test wiht 67 bus system
+data1 = _PM.parse_file("./test/data/PFC/case67.m")
+
+#data1["branch"]["42"]["rate_a"] = 8.0
+#data1["branch"]["42"]["br_status"] = 0
+#data1["branchdc"]["1"]["rateA"] = 900
+
+_PMACDC.process_additional_data!(data1)
+resultIVR = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
+
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B1.m")
+#data2["branch"]["42"]["rate_a"] = 8.0
+#data2["branch"]["42"]["br_status"] = 0
+data2["branchdc"]["1"]["rateA"] = 900
+
+_PMACDC.process_additional_data!(data2)
+resultIVR_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+
+print("######################################################################################\n")
+println("Results without PFC")
+println("Objective: ", resultIVR["objective"])
+println("Termination status: ", resultIVR["termination_status"])
+println("Results with PFC")
+println("Objective: ", resultIVR_PFC["objective"])
+println("Termination status: ", resultIVR_PFC["termination_status"])
+
+error = (resultIVR_PFC["objective"] - resultIVR["objective"])
+
+## 118 bus
+# data3 = _PM.parse_file("./test/data/PFC/case_118.m")
+# _PMACDC.process_additional_data!(data3)
+# resultIVR_118 = _PMACDC.solve_acdcopf_iv(data3, _PM.IVRPowerModel, ipopt; setting = s)
+
+# data4 = _PM.parse_file("./test/data/PFC/case_118_PFC_B1.m")
+# _PMACDC.process_additional_data!(data4)
+# resultIVR_118_PFC = _PMACDC.solve_acdcopf_iv(data4, _PM.IVRPowerModel, ipopt; setting = s)
+
+# print("######################################################################################\n")
+# println("Results without PFC")
+# println("Objective: ", resultIVR_118["objective"])
+# println("Termination status: ", resultIVR_118["termination_status"])
+# println("Results with PFC")
+# println("Objective: ", resultIVR_118_PFC["objective"])
+# println("Termination status: ", resultIVR_118_PFC["termination_status"])
+
+# error = (resultIVR_118_PFC["objective"] - resultIVR_118["objective"])
+
+# loading1 = compute_branch_loading(resultIVR_118, data3)
+# loading2 = compute_branch_loading(resultIVR_118, data4)
+
+# comparison = compare_branch_loading(loading1, loading2)
+
+# print("######################################################################################\n")
+# print("AC and DC Branch Loading Comparison\n")
+# print("######################################################################################\n")
+
+# println("AC Branch ------ Load1 ------- Load2 ------- Delta")
+# for (branch_id, (load1, load2, delta)) in comparison["AC"]
+#     println("$branch_id, $load1, $load2, $delta")
+# end
+# print("--------------------------------------------------------------------------------------\n")
+# println("DC Branch ------ Load1 ------- Load2 ------- Delta")
+# for (branchdc_id, (load1, load2, delta)) in comparison["DC"]
+#     println("$branchdc_id, $load1, $load2, $delta")
+# end
+
+# Testing PFC addition (old)
 
 ## Data with no PFC added 
 
@@ -454,7 +601,7 @@ solution_2["pfc"]
 #######
 ### Test with 67-bus system
 
-data1 = _PM.parse_file("./test/data/case67.m")
+data1 = _PM.parse_file("./test/data/PFC/case67.m")
 
 _PMACDC.process_additional_data!(data1)
 
@@ -468,7 +615,7 @@ resultIVR_67 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting
 
 
 ### Test with 67-bus system with PFC in DC bus 1
-data2 = _PM.parse_file("./test/data/case67_PFC.m")
+data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B1.m")
 
 _PMACDC.process_additional_data!(data2)
 
@@ -913,7 +1060,8 @@ ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_le
 
 for (branchdc_id,branchdc) in data1["branchdc"]
     data_run = deepcopy(data1)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    #data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
@@ -934,17 +1082,23 @@ end
 # OPF for PFC in bus 1
 
 OF_1 = Dict()
+PG_2 = Dict()
 data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B1.m")
 
 for (branchdc_id,branchdc) in data2["branchdc"]
     data_run = deepcopy(data2)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    #data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
     resultIVR_67_PFC = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
     if resultIVR_67_PFC["termination_status"] == LOCALLY_SOLVED
         OF_1["$branchdc_id"] = resultIVR_67_PFC["objective"]
+        PG_2["$branchdc_id"] = Dict()
+        for (g, gen) in resultIVR_67_PFC["solution"]["gen"]
+                PG_2["$branchdc_id"][g] = gen["pg"]
+        end
     else
         println("Branch $branchdc_id could not be solved with PFC at DC bus 1")
         println("Termination status: ", resultIVR_67_PFC["termination_status"])
@@ -959,7 +1113,8 @@ data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B2.m")
 
 for (branchdc_id,branchdc) in data2["branchdc"]
     data_run = deepcopy(data2)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    #data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
@@ -979,7 +1134,8 @@ data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B3.m")
 
 for (branchdc_id,branchdc) in data2["branchdc"]
     data_run = deepcopy(data2)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    # data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
@@ -999,7 +1155,8 @@ data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B4.m")
 
 for (branchdc_id,branchdc) in data2["branchdc"]
     data_run = deepcopy(data2)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    # data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
@@ -1019,7 +1176,8 @@ data2 = _PM.parse_file("./test/data/PFC/case67_PFC_B5.m")
 
 for (branchdc_id,branchdc) in data2["branchdc"]
     data_run = deepcopy(data2)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    # data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
@@ -1040,7 +1198,8 @@ data6 = _PM.parse_file("./test/data/PFC/case67_PFC_B6.m")
 
 for (branchdc_id,branchdc) in data6["branchdc"]
     data_run = deepcopy(data6)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    # data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
@@ -1061,7 +1220,8 @@ data7 = _PM.parse_file("./test/data/PFC/case67_PFC_B7.m")
 
 for (branchdc_id,branchdc) in data6["branchdc"]
     data_run = deepcopy(data7)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    # data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
@@ -1082,7 +1242,8 @@ data8 = _PM.parse_file("./test/data/PFC/case67_PFC_B8.m")
 
 for (branchdc_id,branchdc) in data6["branchdc"]
     data_run = deepcopy(data8)
-    data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    # data_run["branchdc"]["$branchdc_id"]["status"] = 0
+    data_run["branchdc"]["$branchdc_id"]["rateA"] = 800
 
     _PMACDC.process_additional_data!(data_run)
 
@@ -1141,7 +1302,7 @@ heatmap(
     xticks = (1:8, ["Bus 1", "Bus 2", "Bus 3", "Bus 4", "Bus 5", "Bus 6", "Bus 7", "Bus 8"]),
     yticks = (1:length(branch_ids), branch_ids),
     color = :jet,
-    clims = (-1,1)
+    #clims = (-1,1)
 )
 savefig("pfc_location_vs_n1_contingency.png")
 

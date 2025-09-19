@@ -72,9 +72,9 @@ mpc.convdc = [
 %% branches
 %column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB   rateC   status
 mpc.branchdc = [
-    5       2       0.052   0   0    100     100     100     1;
+    4       2       0.052   0   0    100     100     100     1;
     2       3       0.052   0   0    100     100     100     1;
-    4       3       0.073   0   0    100     100     100     1;
+    5       3       0.073   0   0    100     100     100     1;
  ];
 
 %% pfc
@@ -88,7 +88,7 @@ mpc.pfc = [
 %	2	startup	shutdown	n	c(n-1)	...	c0
 mpc.gencost = [
 	2	0	0	3	0  1	0;
-	2	0	0	3 0	 2	0;
+	2	0	0	3   0  2	0;
 ];
 
 % adds current ratings to branch matrix
