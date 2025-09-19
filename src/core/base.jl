@@ -25,6 +25,31 @@ function add_ref_dcgrid!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any})
             end
 
         end
+        if haskey(nw_ref, :branchdc_sc)
+            nw_ref[:branchdc_sc] = Dict([x for x in nw_ref[:branchdc_sc] if (x.second["status"] == 1 && x.second["fbusdc"] in keys(nw_ref[:busdc]) && x.second["tbusdc"] in keys(nw_ref[:busdc]))])
+            # DC grid arcs for DC grid superconducting branches
+            nw_ref[:arcs_dcgrid_from] = [(i,branch["fbusdc"],branch["tbusdc"]) for (i,branch) in nw_ref[:branchdc_sc]]
+            nw_ref[:arcs_dcgrid_to]   = [(i,branch["tbusdc"],branch["fbusdc"]) for (i,branch) in nw_ref[:branchdc_sc]]
+            nw_ref[:arcs_dcgrid] = [nw_ref[:arcs_dcgrid_from]; nw_ref[:arcs_dcgrid_to]]
+            #bus arcs of the DC grid
+            bus_arcs_dcgrid = Dict([(bus["busdc_i"], []) for (i,bus) in nw_ref[:busdc]])
+            for (l,i,j) in nw_ref[:arcs_dcgrid]
+                push!(bus_arcs_dcgrid[i], (l,i,j))
+            end
+            nw_ref[:bus_arcs_dcgrid] = bus_arcs_dcgrid
+        else
+            nw_ref[:branchdc_sc] = Dict{String, Any}()
+            nw_ref[:arcs_dcgrid] = Dict{String, Any}()
+            nw_ref[:arcs_dcgrid_from] = Dict{String, Any}()
+            nw_ref[:arcs_dcgrid_to] = Dict{String, Any}()
+            nw_ref[:arcs_conv_acdc] = Dict{String, Any}()
+            if haskey(nw_ref, :busdc)
+                nw_ref[:bus_arcs_dcgrid] = Dict([(bus["busdc_i"], []) for (i,bus) in nw_ref[:busdc]])
+            else
+                nw_ref[:bus_arcs_dcgrid] = Dict{String, Any}()
+            end
+
+        end
         if haskey(nw_ref, :convdc)
             #Filter converters & DC branches with status 0 as well as wrong bus numbers
             nw_ref[:convdc] = Dict([x for x in nw_ref[:convdc] if (x.second["status"] == 1 && x.second["busdc_i"] in keys(nw_ref[:busdc]) && x.second["busac_i"] in keys(nw_ref[:bus]))])
