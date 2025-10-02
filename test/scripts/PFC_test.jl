@@ -89,7 +89,7 @@ data1 = _PM.parse_file("./test/data/PFC/case67.m")
 
 #data1["branch"]["42"]["rate_a"] = 8.0
 #data1["branch"]["42"]["br_status"] = 0
-#data1["branchdc"]["1"]["rateA"] = 900
+data1["branchdc"]["1"]["rateA"] = 900
 
 _PMACDC.process_additional_data!(data1)
 resultIVR = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, ipopt; setting = s)
