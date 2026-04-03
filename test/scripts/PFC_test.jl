@@ -4,6 +4,314 @@ using JuMP
 using Ipopt
 using Plots
 
+## Testing with small system
+
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-8, "print_level" => 0) # Changed tolerance to 1e-8 from 1e-6
+s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+data = _PM.parse_file("./test/data/PFC/case_2_lines.m")
+_PMACDC.process_additional_data!(data)
+result = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+
+result_power = _PMACDC.solve_acdcopf(data, _PM.ACPPowerModel, ipopt; setting = s)
+#Check Power flows 
+check_power_flows(result, data)
+check_power_flows(result_power, data)
+
+# WIth congestion
+data = _PM.parse_file("./test/data/PFC/case_2_lines.m")
+data["branchdc"]["2"]["rateA"] = 40
+_PMACDC.process_additional_data!(data)
+
+result2 = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+
+result2_power = _PMACDC.solve_acdcopf(data, _PM.ACPPowerModel, ipopt; setting = s)
+
+check_power_flows(result2, data)
+check_power_flows(result2_power, data)
+
+
+### Minimal 3 bus case
+data1 = _PM.parse_file("./test/data/PFC/case_3bus.m")
+_PMACDC.process_additional_data!(data1)
+
+result1 = _PMACDC.solve_acdcopf_iv(data1, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+result1_power = _PMACDC.solve_acdcopf(data1, _PM.ACPPowerModel, ipopt; setting = s)
+
+check_power_flows(result1_power, data1)
+check_power_flows(result1, data1)
+
+
+## Adding congestion to the network
+
+data2 = deepcopy(data1)
+
+data2["branchdc"]["2"]["rateA"] = 0.4
+#_PMACDC.process_additional_data!(data2)
+
+result2 = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+result2_power = _PMACDC.solve_acdcopf(data2, _PM.ACPPowerModel, ipopt; setting = s)
+
+check_power_flows(result2_power, data2)
+check_power_flows(result2, data2)
+
+## System with PFC
+
+data3 = _PM.parse_file("./test/data/PFC/case_3bus_pfc.m")
+_PMACDC.process_additional_data!(data3)
+
+result3 = _PMACDC.solve_acdcopf_iv(data3, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+#result3_power = _PMACDC.solve_acdcopf(data3, _PM.ACPPowerModel, ipopt; setting = s) #PFC not implemented in ACP model
+
+check_power_flows(result3, data3)
+check_pfc_var(result3, data3)
+
+## With changed voltage positions
+data5 = _PM.parse_file("./test/data/PFC/case_3bus_pfc.m")
+_PMACDC.process_additional_data!(data5)
+
+result5 = _PMACDC.solve_acdcopf_iv(data5, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result5, data5)
+
+## Added congestion
+
+data4 = deepcopy(data3)
+data4["branchdc"]["2"]["rateA"] = 0.4
+
+result4 = _PMACDC.solve_acdcopf_iv(data4, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result4, data4)
+check_pfc_var(result4, data4)
+
+
+## From scratch again
+
+#### First case: No PFC (3 bus system)
+data_no_pfc = _PM.parse_file("./test/data/PFC/case_3bus.m")
+_PMACDC.process_additional_data!(data_no_pfc)
+result_no_pfc = _PMACDC.solve_acdcopf_iv(data_no_pfc, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result_no_pfc, data_no_pfc)
+check_duty_cycle(result_no_pfc, data_no_pfc)
+
+#### Second case: With PFC (3 bus system)
+data_with_pfc = _PM.parse_file("./test/data/PFC/case_3bus_pfc.m")
+_PMACDC.process_additional_data!(data_with_pfc)
+result_with_pfc = _PMACDC.solve_acdcopf_iv(data_with_pfc, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result_with_pfc, data_with_pfc)
+check_pfc_var(result_with_pfc, data_with_pfc)
+check_duty_cycle(result_with_pfc, data_with_pfc)
+
+
+## Third case: No PFC but with congestion line 13
+data_no_pfc_cong = _PM.parse_file("./test/data/PFC/case_3bus.m")
+_PMACDC.process_additional_data!(data_no_pfc_cong)
+data_no_pfc_cong["branchdc"]["2"]["rateA"] = 0.4
+result_no_pfc_cong = _PMACDC.solve_acdcopf_iv(data_no_pfc_cong, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result_no_pfc_cong, data_no_pfc_cong)
+check_duty_cycle(result_no_pfc_cong, data_no_pfc_cong)
+
+#### Fourth case: With PFC and with congestion line 13
+data_with_pfc_cong = _PM.parse_file("./test/data/PFC/case_3bus_pfc.m")
+_PMACDC.process_additional_data!(data_with_pfc_cong)
+data_with_pfc_cong["branchdc"]["2"]["rateA"] = 0.4
+result_with_pfc_cong = _PMACDC.solve_acdcopf_iv(data_with_pfc_cong, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result_with_pfc_cong, data_with_pfc_cong)
+check_pfc_var(result_with_pfc_cong, data_with_pfc_cong)
+check_duty_cycle(result_with_pfc_cong, data_with_pfc_cong)
+
+## Fith case: No PFC and congestion line 12
+data_no_pfc_cong_line1 = _PM.parse_file("./test/data/PFC/case_3bus.m")
+_PMACDC.process_additional_data!(data_no_pfc_cong_line1)
+data_no_pfc_cong_line1["branchdc"]["1"]["rateA"] = 0.4
+result_no_pfc_cong_line1 = _PMACDC.solve_acdcopf_iv(data_no_pfc_cong_line1, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result_no_pfc_cong_line1, data_no_pfc_cong_line1)
+check_duty_cycle(result_no_pfc_cong_line1, data_no_pfc_cong_line1)
+
+#### Sixth case: With PFC and congestion line 12
+data_with_pfc_cong_line1 = _PM.parse_file("./test/data/PFC/case_3bus_pfc.m")
+_PMACDC.process_additional_data!(data_with_pfc_cong_line1)
+data_with_pfc_cong_line1["branchdc"]["1"]["rateA"] = 0.4
+result_with_pfc_cong_line1 = _PMACDC.solve_acdcopf_iv(data_with_pfc_cong_line1, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result_with_pfc_cong_line1, data_with_pfc_cong_line1)
+check_pfc_var(result_with_pfc_cong_line1, data_with_pfc_cong_line1)
+check_duty_cycle(result_with_pfc_cong_line1, data_with_pfc_cong_line1)
+
+# Collecting results for the table
+results = [
+    ("No PFC                    ", result_no_pfc["objective"]),
+    ("With PFC                  ", result_with_pfc["objective"]),
+    ("No PFC with congestion    ", result_no_pfc_cong["objective"]),
+    ("With PFC and congestion   ", result_with_pfc_cong["objective"]),
+    ("No PFC line 1 congestion  ", result_no_pfc_cong_line1["objective"]),
+    ("With PFC line 1 congestion", result_with_pfc_cong_line1["objective"]),
+]
+
+# Printing the results in a table format
+println("================================")
+println("Latest Results Summary")
+println("================================")
+println("Case                       | Objective Function Value")
+println("--------------------------------------------------------")
+for (case, objective) in results
+    println("$case | $objective")
+end
+println("================================")
+
+
+### New test for the 2 loop system
+data_loop = _PM.parse_file("./test/data/PFC/case_3bus_2grids.m")
+_PMACDC.process_additional_data!(data_loop)
+result_loop = _PMACDC.solve_acdcopf_iv(data_loop, _PM.IVRPowerModel, Ipopt.Optimizer; setting = s)
+check_power_flows(result_loop, data_loop)
+
+
+### Test with North Sea grid
+
+NS_S1 = _PM.parse_file("./test/data/PFC/NS_SI_mod.m")
+
+_PMACDC.process_additional_data!(NS_S1)
+
+result_NS_SI = _PMACDC.solve_acdcopf(NS_S1, _PM.ACPPowerModel, ipopt; setting = s)
+
+
+
+
+
+
+
+function check_pfc_var(result,data)
+    println("================================")
+    println("PFC Variables:")
+    println("================================")
+
+    solution = result["solution"]
+    pfc = solution["pfc"]
+    branchdc = solution["branchdc"]
+
+    for (pfc_id, pfc_data) in pfc
+        vm_e = pfc_data["c_voltage"]
+        d = pfc_data["duty_cycle"]
+        DE = d*vm_e
+        D1E = (1 - d)*vm_e
+        println("PFC $pfc_id: DC Voltage setpoint = $vm_e pu\n")
+        println("PFC $pfc_id: Duty Cycle = $d \n")
+        println("PFC $pfc_id: DE = $DE pu\n")
+        println("PFC $pfc_id: 1-DE = $D1E pu\n")
+        # println("--------------------------------------------------")
+        # I2 = branchdc["2"]["if"]
+        # I3 = branchdc["1"]["if"]
+        # d_calc = I3/(I2 + I3)
+        # println("PFC $pfc_id: Branch Currents I2 = $I2 pu, I3 = $I3 pu\n")
+        # println("PFC $pfc_id: Calculated Duty Cycle from branch currents = $d_calc \n")
+    end
+end
+
+function check_duty_cycle(result,data)
+    println("================================")
+    println("PFC Duty Cycle Check:")
+    println("================================")
+    solution = result["solution"]
+    branchdc = solution["branchdc"]
+    I2 = branchdc["2"]["if"]
+    I3 = branchdc["1"]["if"]
+    d_calc = I3/(I2 + I3)
+    println("Branch Currents I2 = $I2 pu, I3 = $I3 pu\n")
+    println("Calculated Duty Cycle from branch currents = $d_calc \n")
+end
+
+function check_power_flows(result, data)
+
+    println("================================")
+    println("Power Flows in the system:")
+    println("================================")
+
+    solution = result["solution"]
+    if haskey(solution,"branch")
+        branch = solution["branch"]
+        for(branch_id, branch_data) in branch
+            from_bus = data["branch"][branch_id]["f_bus"]
+            to_bus = data["branch"][branch_id]["t_bus"]
+            pf = branch_data["pf"]
+            pt = branch_data["pt"]
+    
+            println("AC Branch $branch_id: From Bus $from_bus to Bus $to_bus")
+            println("  Power Flow From (pf): $pf pu")
+            println("  Power Flow To (pt): $pt pu\n")
+        end
+    end
+    branchdc = solution["branchdc"]
+    convdc = solution["convdc"]
+    busdc = solution["busdc"]
+    gen = solution["gen"]
+    load = data["load"]
+    if haskey(solution,"pfc")
+        pfc = solution["pfc"]
+        for (pfc_id, pfc_data) in pfc
+            vm_e = pfc_data["c_voltage"]
+            d = pfc_data["duty_cycle"]
+            println("PFC $pfc_id: DC Voltage setpoint = $vm_e pu\n")
+            println("PFC $pfc_id: Duty Cycle = $d \n")
+        end
+    end
+
+    total_gen = 0.0
+    total_ens = 0.0
+    for (gen_id, gen_data) in gen
+        bus = data["gen"][gen_id]["gen_bus"]
+        pg = gen_data["pg"]
+        total_gen += pg
+        if (gen_id == "3" || gen_id == "4") #Gen 3 and 4 are ENS virtual gens
+            total_ens += pg
+        end
+        println("Generator $gen_id at Bus $bus: Generation = $pg pu\n")
+    end
+    println("Total Generation in the system: $total_gen pu\n")
+    println("Total ENS Generation in the system: $total_ens pu\n")
+
+    total_load = 0.0
+    for (load_id, load_data) in load
+        bus = data["load"][load_id]["load_bus"]
+        pd = load_data["pd"]
+        total_load += pd
+        println("Load $load_id at Bus $bus: Demand = $pd pu\n")
+    end
+    println("Total Load in the system: $total_load pu\n")
+    
+    p_loss = total_gen - total_load
+    println("Total Power Loss in the system: $p_loss pu\n")
+
+    for(convdc_id, convdc_data) in convdc
+        dcbus = data["convdc"][convdc_id]["busdc_i"]
+        acbus = data["convdc"][convdc_id]["busac_i"]
+        pdc = convdc_data["pdc"]
+        pconv = convdc_data["pconv"]
+
+        println("Converter DC $convdc_id: From AC Bus $acbus to DC Bus $dcbus")
+        println("  Power Flow to/from AC Grid (pconv): $pconv pu")
+        println("  Power Flow to/from DC Grid (pdc): $pdc pu\n")
+    end
+
+    for (branchdc_id, branchdc_data) in branchdc
+        from_bus = data["branchdc"][branchdc_id]["fbusdc"]
+        to_bus = data["branchdc"][branchdc_id]["tbusdc"]
+        pf = branchdc_data["pf"]
+        pt = branchdc_data["pt"]
+        ifrom = branchdc_data["if"]
+
+        println("DC Branch $branchdc_id: From Bus $from_bus to Bus $to_bus")
+        println("  Power Flow From (pf): $pf pu")
+        println("  Power Flow To (pt): $pt pu\n")
+        println("  Current Flow From (if): $ifrom pu\n")
+    end
+
+    for (busdc_id, busdc_data) in busdc
+        vdc = busdc_data["vm"]
+        println("DC Bus $busdc_id: Voltage = $vdc pu\n")
+    end
+
+end
+
+
 ## Testing with updated PFC equations
 
 # No PFC
@@ -24,6 +332,17 @@ data2 = _PM.parse_file("./test/data/case5_acdc_pfc.m")
 _PMACDC.process_additional_data!(data2)
 
 resultIVR_PFC = _PMACDC.solve_acdcopf_iv(data2, _PM.IVRPowerModel, ipopt; setting = s)
+
+## Result redispatch OPF
+
+data["gen"]["1"]["rdcost_up"] = 2
+data["gen"]["1"]["rdcost_down"] = 2 
+
+data["gen"]["2"]["rdcost_up"] = 4
+data["gen"]["2"]["rdcost_down"] = 4 
+
+result_RDOPF = _PMACDC.solve_rdopf(data, _PM.IVRPowerModel, ipopt; setting = s)
+
 
 loading1 = compute_branch_loading(resultIVR, data1)
 loading2 = compute_branch_loading(resultIVR_PFC, data2)
@@ -1520,44 +1839,119 @@ end
 # ))
 
 
-# pm = _PM.instantiate_model(data, ACPPowerModel, build_opf; setting = s)
-# ref_data = _PM.ref(pm)
+pm = _PM.instantiate_model(data, ACPPowerModel, build_opf; setting = s)
+ref_data = _PM.ref(pm)
 
-# ref_data[:pfc] = Dict(x for x in ref_data[:pfc] if (x.second["pfc_status"] == 1 && x.second["terminal1_bus"] in keys(ref_data[:busdc]) && x.second["terminal2_bus"] in keys(ref_data[:busdc]) && x.second["terminal3_bus"] in keys(ref_data[:busdc])))
+ref_data[:pfc] = Dict(x for x in ref_data[:pfc] if (x.second["pfc_status"] == 1 && x.second["terminal1_bus"] in keys(ref_data[:busdc]) && x.second["terminal2_bus"] in keys(ref_data[:busdc]) && x.second["terminal3_bus"] in keys(ref_data[:busdc])))
 
-# ref_data[:arcs_from_12_pfc] = [(i, pfc["terminal1_bus"],pfc["terminal2_bus"]) for (i,pfc) in ref_data[:pfc]] # Current 1 to 2
-# ref_data[:arcs_from_13_pfc] = [(i, pfc["terminal1_bus"],pfc["terminal3_bus"]) for (i,pfc) in ref_data[:pfc]] # Current 2 to 1
-# ref_data[:arcs_to_12_pfc]   = [(i, pfc["terminal2_bus"],pfc["terminal1_bus"]) for (i,pfc) in ref_data[:pfc]] # Current 1 to 3
-# ref_data[:arcs_to_13_pfc]   = [(i, pfc["terminal3_bus"],pfc["terminal1_bus"]) for (i,pfc) in ref_data[:pfc]] # Current 3 to 1
-# ref_data[:arcs_pfc] = [ref_data[:arcs_from_12_pfc]; ref_data[:arcs_from_13_pfc]; ref_data[:arcs_to_12_pfc]; ref_data[:arcs_to_13_pfc]]
+ref_data[:arcs_from_12_pfc] = [(i, pfc["terminal1_bus"],pfc["terminal2_bus"]) for (i,pfc) in ref_data[:pfc]] # Current 1 to 2
+ref_data[:arcs_from_13_pfc] = [(i, pfc["terminal1_bus"],pfc["terminal3_bus"]) for (i,pfc) in ref_data[:pfc]] # Current 2 to 1
+ref_data[:arcs_pfc_from] = [ref_data[:arcs_from_12_pfc]; ref_data[:arcs_from_13_pfc]]
+ref_data[:arcs_to_12_pfc]   = [(i, pfc["terminal2_bus"],pfc["terminal1_bus"]) for (i,pfc) in ref_data[:pfc]] # Current 1 to 3
+ref_data[:arcs_to_13_pfc]   = [(i, pfc["terminal3_bus"],pfc["terminal1_bus"]) for (i,pfc) in ref_data[:pfc]] # Current 3 to 1
+ref_data[:arcs_pfc_to] = [ref_data[:arcs_to_12_pfc]; ref_data[:arcs_to_13_pfc]]
+ref_data[:arcs_pfc] = [ref_data[:arcs_pfc_from]; ref_data[:arcs_pfc_to]]
 
-#         bus_arcs_pfc = Dict((i, []) for (i,busdc) in ref_data[:busdc])
-#         for (l,i,j) in ref_data[:arcs_pfc]
-#             push!(bus_arcs_pfc[i], (l,i,j))
-#         end
-#         ref_data[:bus_arcs_pfc] = bus_arcs_pfc
+        bus_arcs_pfc = Dict((i, []) for (i,busdc) in ref_data[:busdc])
+        for (l,i,j) in ref_data[:arcs_pfc]
+            push!(bus_arcs_pfc[i], (l,i,j))
+        end
+        ref_data[:bus_arcs_pfc] = bus_arcs_pfc
+
+#### Variable testing DC current
+
+ref_data[:branchdc] = Dict([x for x in ref_data[:branchdc] if (x.second["status"] == 1 && x.second["fbusdc"] in keys(ref_data[:busdc]) && x.second["tbusdc"] in keys(ref_data[:busdc]))])
+            # DC grid arcs for DC grid branches
+            ref_data[:arcs_dcgrid_from] = [(i,branch["fbusdc"],branch["tbusdc"]) for (i,branch) in ref_data[:branchdc]]
+            ref_data[:arcs_dcgrid_to]   = [(i,branch["tbusdc"],branch["fbusdc"]) for (i,branch) in ref_data[:branchdc]]
+            ref_data[:arcs_dcgrid] = [ref_data[:arcs_dcgrid_from]; ref_data[:arcs_dcgrid_to]]
+            #bus arcs of the DC grid
+            bus_arcs_dcgrid = Dict([(bus["busdc_i"], []) for (i,bus) in ref_data[:busdc]])
+
+            for (l,i,j) in ref_data[:arcs_dcgrid]
+                push!(bus_arcs_dcgrid[i], (l,i,j))
+            end
+            ref_data[:bus_arcs_dcgrid] = bus_arcs_dcgrid
+
+vpu = 1;
+    igrid_dc = _PM.var(pm, nw)[:igrid_dc] = JuMP.@variable(pm.model,
+    [(l,i,j) in _PM.ref(pm, nw, :arcs_dcgrid)], base_name="$(nw)_igrid_dc",
+    start = (_PM.comp_start_value(_PM.ref(pm, nw, :branchdc, l), "p_start", 0.0) / vpu)
+    )
+    if true
+        for arc in _PM.ref(pm, nw, :arcs_dcgrid)
+            l,i,j = arc
+            JuMP.set_lower_bound(igrid_dc[arc], -_PM.ref(pm, nw, :branchdc, l)["rateA"] / vpu)
+            JuMP.set_upper_bound(igrid_dc[arc],  _PM.ref(pm, nw, :branchdc, l)["rateA"] / vpu)
+        end
+    end
+    _PM.sol_component_value_edge(pm, nw, :branchdc, :if, :it, _PM.ref(pm, nw, :arcs_dcgrid_from), _PM.ref(pm, nw, :arcs_dcgrid_to), igrid_dc)
+
+
 
 
 
 #        ## Variable testing 
-# nw = 0
-#         duty_cycle = _PM.var(pm, nw)[:duty_cycle] = JuMP.@variable(pm.model,
-#         [i in _PM.ids(pm, nw, :pfc)], base_name="$(nw)_duty_cycle",
-#         start = 0.5
-#     )
-# pfc_id = _PM.ids(pm,0, :pfc)
+nw = 0
+        duty_cycle = _PM.var(pm, nw)[:duty_cycle] = JuMP.@variable(pm.model,
+        [i in _PM.ids(pm, nw, :pfc)], base_name="$(nw)_duty_cycle",
+        start = 0.5
+    )
+pfc_id = _PM.ids(pm,0, :pfc)
 
-# pfc_current = _PM.var(pm, nw)[:pfc_current] = JuMP.@variable(pm.model,
-#         [(l,i,j) in _PM.ref(pm, nw, :arcs_pfc)], base_name="$(nw)_pfc_current",
-#         start = 0.5 # To avoid division by zero, maybe change later
-#     )
-#     _PM.ref(pm, 0, :pfc, 1)
+_PM.sol_component_value(pm, nw, :pfc, :duty_cycle, _PM.ids(pm, nw, :pfc), duty_cycle)
 
-#     pfc_current  = _PM.var(pm, 0, :pfc_current)
+pfc_current = _PM.var(pm, nw)[:pfc_current] = JuMP.@variable(pm.model,
+        [(l,i,j) in _PM.ref(pm, nw, :arcs_pfc)], base_name="$(nw)_pfc_current",
+        start = 0.5 # To avoid division by zero, maybe change later
+    )
+    _PM.ref(pm, 0, :pfc, 1)
 
-#     for a in bus_arcs_pfc
-#         println(a)
-#     end
+    println("Checking _PM.ref(pm, nw, :pfc, l): ", _PM.ref(pm, nw, :pfc, 1))
+    println("Checking _PM.ref(pm, nw, :arcs_pfc): ", _PM.ref(pm, nw, :arcs_pfc))
+    println("Checking _PM.ids(pm, nw, :pfc): ", _PM.ids(pm, nw, :pfc))
+
+    using InfrastructureModels ; const _IM = InfrastructureModels
+
+    _PM.sol_component_value_edge(pm, nw, :pfc, :ipfc_dc_fr, :ipfc_dc_to, _PM.ref(pm, nw, :arcs_pfc_from), _PM.ref(pm, nw, :arcs_pfc_to), pfc_current)
+    _PM.sol_component_value(pm, nw, :pfc, :ipfc_dc, _PM.ids(pm, nw, :pfc), pfc_current)
+    # Ensure pfc_current is defined and has the correct dimensions
+
+    pfc_current  = _PM.var(pm, 0, :pfc_current)
+
+    for a in bus_arcs_pfc
+        println(a)
+    end
+    
+# Testing 
+
+# What are your variable keys?
+println("pfc_current keys:")
+for (k, _) in pairs(pfc_current)
+    println(k)
+end
+
+# What arcs does PM expect?
+arcs_fr = _PM.ref(pm, nw, :arcs_pfc_from)
+arcs_to = _PM.ref(pm, nw, :arcs_pfc_to)
+
+println("\n:arcs_pfc_from keys:")
+for k in arcs_fr
+    println(k)
+end
+
+println("\n:arcs_pfc_to keys:")
+for k in arcs_to
+    println(k)
+end
+
+println("Calling _PM.sol_component_value with:")
+println("pm: ", pm)
+println("nw: ", nw)
+println(":pfc: ", :pfc)
+println(":ipfc_dc: ", :ipfc_dc)
+println("PFC IDs: ", _PM.ids(pm, nw, :pfc))
+println("PFC Current: ", pfc_current)
 
 #     JuMP.@constraint(pm.model, sum(pfc_current[a] for a in values(bus_arcs_pfc)) == 0)
 

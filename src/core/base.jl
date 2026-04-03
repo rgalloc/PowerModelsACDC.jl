@@ -407,9 +407,11 @@ function ref_add_pfc!(ref::Dict{Symbol,<:Any}, data::Dict{String,<:Any})
 
         nw_ref[:arcs_from_12_pfc] = [(i, pfc["terminal1_bus"],pfc["terminal2_bus"]) for (i,pfc) in nw_ref[:pfc]] # Current 1 to 2
         nw_ref[:arcs_from_13_pfc] = [(i, pfc["terminal1_bus"],pfc["terminal3_bus"]) for (i,pfc) in nw_ref[:pfc]] # Current 2 to 1
+        nw_ref[:arcs_pfc_from] = [nw_ref[:arcs_from_12_pfc]; nw_ref[:arcs_from_13_pfc]]
         nw_ref[:arcs_to_12_pfc]   = [(i, pfc["terminal2_bus"],pfc["terminal1_bus"]) for (i,pfc) in nw_ref[:pfc]] # Current 1 to 3
         nw_ref[:arcs_to_13_pfc]   = [(i, pfc["terminal3_bus"],pfc["terminal1_bus"]) for (i,pfc) in nw_ref[:pfc]] # Current 3 to 1
-        nw_ref[:arcs_pfc] = [nw_ref[:arcs_from_12_pfc]; nw_ref[:arcs_from_13_pfc]; nw_ref[:arcs_to_12_pfc]; nw_ref[:arcs_to_13_pfc]]
+        nw_ref[:arcs_pfc_to] = [nw_ref[:arcs_to_12_pfc]; nw_ref[:arcs_to_13_pfc]]
+        nw_ref[:arcs_pfc] = [nw_ref[:arcs_pfc_from]; nw_ref[:arcs_pfc_to]]
 
         bus_arcs_pfc = Dict((i, []) for (i,busdc) in nw_ref[:busdc])
         for (l,i,j) in nw_ref[:arcs_pfc]

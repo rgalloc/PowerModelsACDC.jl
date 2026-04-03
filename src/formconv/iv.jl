@@ -20,6 +20,8 @@ function variable_dc_converter(pm::_PM.AbstractIVRModel; kwargs...)
     variable_converter_active_power(pm; kwargs...)
     variable_converter_reactive_power(pm; kwargs...)
     variable_dcside_power(pm; kwargs...)
+    variable_converter_to_grid_active_power(pm; kwargs...)
+    variable_converter_to_grid_reactive_power(pm; kwargs...)
 end
 
 ########### CONVERTER AC SIDE VOLTAGES   ##############################
@@ -398,6 +400,12 @@ function constraint_conv_transformer(pm::_PM.AbstractIVRModel, n::Int, i::Int, r
         JuMP.@constraint(pm.model, iik_r + iki_r == 0)
         JuMP.@constraint(pm.model, iik_i + iki_i == 0)
     end
+
+    # pgrid = _PM.var(pm, n, :pgrid, i)
+    # qgrid = _PM.var(pm, n, :qgrid, i)
+
+    # JuMP.@constraint(pm.model, pgrid == vi_r * iik_r + vi_i * iik_i)
+    # JuMP.@constraint(pm.model, qgrid == vi_i * iik_r - vi_r * iik_i)
 end
 
 "Reactor constraints in IVR models. Enforces voltage drops across reactor if present."
@@ -443,6 +451,18 @@ function constraint_conv_filter(pm::_PM.AbstractIVRModel, n::Int, i::Int, bv, fi
     JuMP.@constraint(pm.model,   iki_r + ikc_r + bv * filter * vk_i == 0)
     JuMP.@constraint(pm.model,   iki_i + ikc_i - bv * filter * vk_r == 0)
 end
+
+# function constraint_converter_power(pm::_PM.AbstractIVRModel, n::Int, i::Int, acbus)
+#     vi_r = _PM.var(pm, n, :vr, acbus)
+#     vi_i = _PM.var(pm, n, :vi, acbus)
+#     iik_r = _PM.var(pm, n, :iik_r, i)
+#     iik_i = _PM.var(pm, n, :iik_i, i)
+#     pgrid = _PM.var(pm, n, :pgrid, i)
+#     qgrid = _PM.var(pm, n, :qgrid, i)
+
+#     JuMP.@constraint(pm.model, pgrid == vi_r * iik_r + vi_i * iik_i)
+#     JuMP.@constraint(pm.model, qgrid == vi_i * iik_r - vi_r * iik_i)
+# end
 
 ################# Kicrchhoff's current law ############################################
 

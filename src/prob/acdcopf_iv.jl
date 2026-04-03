@@ -86,7 +86,16 @@ function build_acdcopf_iv(pm::_PM.AbstractIVRModel)
     _PM.variable_gen_current(pm)
     _PM.variable_dcline_current(pm)
 
-    _PM.objective_min_fuel_and_flow_cost(pm)
+    # if !isempty(_PM.ids(pm, :pfc))
+    #     objective_min_cost_pfc(pm)
+    # else
+    #     _PM.objective_min_fuel_and_flow_cost(pm)
+    # end
+
+    # _PM.objective_min_fuel_and_flow_cost(pm)
+    # _PM.objective_min_fuel_cost(pm)
+
+    objective_min_operational_cost(pm)
 
     variable_active_dcbranch_flow(pm)
     variable_dcbranch_current(pm)
@@ -146,6 +155,7 @@ function build_acdcopf_iv(pm::_PM.AbstractIVRModel)
         constraint_conv_transformer(pm, i)
         constraint_conv_reactor(pm, i)
         constraint_conv_filter(pm, i)
+        # constraint_converter_power(pm, i)
     end
 
     if haskey(pm.setting, "fix_cross_border_flows") && pm.setting["fix_cross_border_flows"] == true
@@ -159,10 +169,12 @@ function build_acdcopf_iv(pm::_PM.AbstractIVRModel)
         end
     end
     for i in _PM.ids(pm, :pfc)
-        #constraint_duty_cycle_pfc(pm, i)
+        constraint_duty_cycle_pfc(pm, i)
         constraint_pfc_current_balance(pm, i)
         constraint_voltage_terminal_2_pfc(pm, i)
         constraint_voltage_terminal_3_pfc(pm, i)
+        # constraint_duty_cycle_1(pm, i)  
+        # constraint_duty_cycle_2(pm, i)  
     end
 end
 """

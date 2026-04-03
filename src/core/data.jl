@@ -244,7 +244,7 @@ end
 
 function to_pu_single_network_pfc!(data)
     MVAbase = data["baseMVA"]
-    kVbase = 345
+    kVbase = 500 ### FIXME: Should be read from data
     for (i, pfc) in data["pfc"]
         scale_pfc_data!(pfc, MVAbase)
         set_pfc_pu_volt!(pfc, kVbase)

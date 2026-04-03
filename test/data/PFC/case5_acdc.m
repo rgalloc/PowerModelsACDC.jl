@@ -28,8 +28,12 @@ mpc.bus = [
 %% generator data
 %	bus	Pg      Qg	Qmax	Qmin	Vg	mBase       status	Pmax	Pmin	pc1 pc2 qlcmin qlcmax qc2min qc2max ramp_agc ramp_10 ramp_30 ramp_q apf
 mpc.gen = [
-	1	0       0	500      -500    1.06	100       1       250     10 0 0 0 0 0 0 0 0 0 0 0;
-    2	40      0	300      -300    1      100       1       300     10 0 0 0 0 0 0 0 0 0 0 0;
+	1	0       0	500      -500    1.06	100       1       250     10    0 0 0 0 0 0 0 0 0 0 0;
+    2	40      0	300      -300    1      100       1       300     10    0 0 0 0 0 0 0 0 0 0 0;
+    2   0       0	0        0       1      100       1       20        0    0 0 0 0 0 0 0 0 0 0 0;
+    3   0       0	0        0       1      100       1       45        0    0 0 0 0 0 0 0 0 0 0 0;
+    4   0       0	0        0       1      100       1       40        0    0 0 0 0 0 0 0 0 0 0 0;
+    5   0       0	0        0       1      100       1       60        0    0 0 0 0 0 0 0 0 0 0 0;
 ];
 
 %% branch data
@@ -56,8 +60,6 @@ mpc.busdc = [
     1              1       0       1       345         1.1     0.9     0;
     2              1       0       1       345         1.1     0.9     0;
 	3              1       0       1       345         1.1     0.9     0;
-    4              1       0       1       345         1.1     0.9     0;
-    5              1       0       1       345         1.1     0.9     0;
 ];
 
 %% converters
@@ -71,16 +73,10 @@ mpc.convdc = [
 %% branches
 %column_names%   fbusdc  tbusdc  r      l        c   rateA   rateB   rateC   status
 mpc.branchdc = [
-    4       2       0.052   0   0    100     100     100     1;
+    1       2       0.052   0   0    100     100     100     1;
     2       3       0.052   0   0    100     100     100     1;
-    5       3       0.073   0   0    100     100     100     1;
+    1       3       0.073   0   0    100     100     100     1;
  ];
-
-%% pfc
-%column_names% terminal1_bus terminal2_bus terminal3_bus c_voltage_min c_voltage_max duty_cycle_min duty_cycle_max pfc_current_min pfc_current_max pfc_status
-mpc.pfc = [
-    1       4       5       -4     4     0.0     1.0     -120    120 1;
-];
 
 %% generator cost data
 %	1	startup	shutdown	n	x1	y1	...	xn	yn
@@ -88,6 +84,10 @@ mpc.pfc = [
 mpc.gencost = [
 	2	0	0	3	0  1	0;
 	2	0	0	3   0  2	0;
+    2	0	0	3   0  100	0;
+    2	0	0	3   0  100	0;
+    2	0	0	3   0  100	0;
+    2	0	0	3   0  100	0;
 ];
 
 % adds current ratings to branch matrix
