@@ -3,8 +3,28 @@ using PowerModelsACDC ; const _PMACDC = PowerModelsACDC
 using JuMP
 using Ipopt
 using Plots
+import HSL_jll
 
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+HSL_jll.libhsl_path
+
+model = Model(Ipopt.Optimizer)
+@variable(model, x)
+@objective(model, Min, (x - 2)^2)
+
+# Load the HSL solvers
+set_attribute(model, "hsllib", HSL_jll.libhsl_path)
+# Use the linear solver MA57
+set_attribute(model, "linear_solver", "ma27")
+
+# Solve the model
+optimize!(model)
+
+# Output the results
+println("Optimal value of x: ", value(x))
+println("Optimal value of y: ", value(y))
+println("Objective value: ", objective_value(model))
 
 ## Simulations to run 67 bus system for 24 and 8760 hour horizon with and without PFCs
 
@@ -207,13 +227,23 @@ scale_load_ens!(data_with_pfc_67bus_B7, data_24h_with_pfc_67bus_B7, time_steps_6
 scale_load_ens!(data_with_pfc_67bus_B8, data_24h_with_pfc_67bus_B8, time_steps_67bus, load_profile)
 
 
+# Solution time
+solution_time_with_pfc_67bus_B1_MUMPS = Vector{Any}(undef, length(time_steps_67bus))
+solution_time_with_pfc_67bus_B1_MA27 = Vector{Any}(undef, length(time_steps_67bus))
+
 # Running the 24-hour simulation with PFC
 for t in time_steps_67bus
 
-    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => "no") 
+    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => "no", "linear_solver" => "ma27")
+    # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => "no") 
     results_24h_with_pfc_67bus_B1[t] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B1[t], _PM.IVRPowerModel, ipopt; setting = s)
     solution_status_with_pfc_67bus_B1[t] = results_24h_with_pfc_67bus_B1[t]["termination_status"]
+    # solution_time_with_pfc_67bus_B1_MUMPS[t] = results_24h_with_pfc_67bus_B1[t]["solve_time"]
+    solution_time_with_pfc_67bus_B1_MA27[t] = results_24h_with_pfc_67bus_B1[t]["solve_time"]
 end
+
+time_diff = [solution_time_with_pfc_67bus_B1_MA27[t] - solution_time_with_pfc_67bus_B1_MUMPS[t] for t in time_steps_67bus]
+
 for t in time_steps_67bus
     ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => "no") 
     results_24h_with_pfc_67bus_B2[t] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B2[t], _PM.IVRPowerModel, ipopt; setting = s)

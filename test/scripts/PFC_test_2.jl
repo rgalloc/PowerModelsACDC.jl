@@ -281,13 +281,20 @@ s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
 
 # Base case 67 bus system no PFC
 data_no_pfc_67bus = _PM.parse_file("./test/data/PFC/case67.m")
+data = _PM.parse_file("./test/data/PFC/case5_acdc.m")
+_PMACDC.process_additional_data!(data)
 _PMACDC.process_additional_data!(data_no_pfc_67bus)
 # for (branchdc_id,branchdc) in data_no_pfc_67bus["branchdc"]
 #     if branchdc_id != 11
 #         data_no_pfc_67bus["branchdc"][branchdc_id]["rateA"] *= 0.5
 #     end
 # end
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-8, "print_level" => 5, "linear_solver" => "ma27") # Changed tolerance to 1e-8 from 1e-6
 result_no_pfc_67bus = _PMACDC.solve_acdcopf_iv(data_no_pfc_67bus, _PM.IVRPowerModel, ipopt; setting = s)
+result = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt; setting = s)
+
+import LinearAlgebra
+LinearAlgebra.BLAS.lbt_get_config()
 
 # DC_loading = Dict{String,Float64}()
 # AC_loading = Dict{String,Float64}()
