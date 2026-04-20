@@ -7,8 +7,9 @@ import HSL_jll
 
 
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
-lsolver = "ma27"
+lsolver = "ma57"
 warm = "no"
+level = 0 #Print level for ipopt
 
 # HSL_jll.libhsl_path
 
@@ -135,20 +136,20 @@ scale_load_ens!(data_with_pfc_67bus_B8, data_24h_with_pfc_67bus_B8, time_steps_6
 
 for t in time_steps_67bus
     #NO PFC
-    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
+    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
     results_24h_no_pfc_67bus[t, 1] = _PMACDC.solve_acdcopf_iv(data_24h_no_pfc_67bus[t], _PM.IVRPowerModel, ipopt; setting = s)
     # PFC Bus 2
-    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
+    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
     results_24h_with_pfc_67bus_B2[t, 1] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B2[t], _PM.IVRPowerModel, ipopt; setting = s)
-    # # PFC Bus 3
-    # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
-    # results_24h_with_pfc_67bus_B3[t, 1] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B3[t], _PM.IVRPowerModel, ipopt; setting = s)
-    # # PFC Bus 4
-    # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
-    # results_24h_with_pfc_67bus_B4[t, 1] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B4[t], _PM.IVRPowerModel, ipopt; setting = s)
-    # # PFC Bus 8
-    # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
-    # results_24h_with_pfc_67bus_B8[t, 1] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B8[t], _PM.IVRPowerModel, ipopt; setting = s)
+    # PFC Bus 3
+    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
+    results_24h_with_pfc_67bus_B3[t, 1] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B3[t], _PM.IVRPowerModel, ipopt; setting = s)
+    # PFC Bus 4
+    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
+    results_24h_with_pfc_67bus_B4[t, 1] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B4[t], _PM.IVRPowerModel, ipopt; setting = s)
+    # PFC Bus 8
+    ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
+    results_24h_with_pfc_67bus_B8[t, 1] = _PMACDC.solve_acdcopf_iv(data_24h_with_pfc_67bus_B8[t], _PM.IVRPowerModel, ipopt; setting = s)
 end
 
 # DC contingencies
@@ -157,30 +158,30 @@ for t in time_steps_67bus
     for (i,dc) in enumerate(dc_branches)
         c = 1 + i
         # No PFC
-        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
         data_run = deepcopy(data_24h_no_pfc_67bus[t])
         data_run["branchdc"][dc]["status"] = 0
         results_24h_no_pfc_67bus[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
         # PFC Bus 2
-        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver)
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver)
         data_run = deepcopy(data_24h_with_pfc_67bus_B2[t])
         data_run["branchdc"][dc]["status"] = 0
         results_24h_with_pfc_67bus_B2[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
-        # # PFC Bus 3
-        # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver)
-        # data_run = deepcopy(data_24h_with_pfc_67bus_B3[t])
-        # data_run["branchdc"][dc]["status"] = 0
-        # results_24h_with_pfc_67bus_B3[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
-        # # PFC Bus 4
-        # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver)
-        # data_run = deepcopy(data_24h_with_pfc_67bus_B4[t])
-        # data_run["branchdc"][dc]["status"] = 0
-        # results_24h_with_pfc_67bus_B4[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
-        # # PFC Bus 8
-        # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver)
-        # data_run = deepcopy(data_24h_with_pfc_67bus_B8[t])
-        # data_run["branchdc"][dc]["status"] = 0
-        # results_24h_with_pfc_67bus_B8[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+        # PFC Bus 3
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver)
+        data_run = deepcopy(data_24h_with_pfc_67bus_B3[t])
+        data_run["branchdc"][dc]["status"] = 0
+        results_24h_with_pfc_67bus_B3[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+        # PFC Bus 4
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver)
+        data_run = deepcopy(data_24h_with_pfc_67bus_B4[t])
+        data_run["branchdc"][dc]["status"] = 0
+        results_24h_with_pfc_67bus_B4[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+        # PFC Bus 8
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver)
+        data_run = deepcopy(data_24h_with_pfc_67bus_B8[t])
+        data_run["branchdc"][dc]["status"] = 0
+        results_24h_with_pfc_67bus_B8[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
     end
 end
 
@@ -190,30 +191,30 @@ for t in time_steps_67bus
     for (i,ac) in enumerate(ac_branches)
         c = 1 + length(dc_branches) + i
         # No PFC
-        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver) 
         data_run = deepcopy(data_24h_no_pfc_67bus[t])
         data_run["branch"][ac]["br_status"] = 0
         results_24h_no_pfc_67bus[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
         # PFC Bus 2
-        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver)
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver)
         data_run = deepcopy(data_24h_with_pfc_67bus_B2[t])
         data_run["branch"][ac]["br_status"] = 0
         results_24h_with_pfc_67bus_B2[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
-        # # PFC Bus 3
-        # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver)
-        # data_run = deepcopy(data_24h_with_pfc_67bus_B3[t])
-        # data_run["branch"][ac]["br_status"] = 0
-        # results_24h_with_pfc_67bus_B3[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
-        # # PFC Bus 4
-        # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver)
-        # data_run = deepcopy(data_24h_with_pfc_67bus_B4[t])
-        # data_run["branch"][ac]["br_status"] = 0
-        # results_24h_with_pfc_67bus_B4[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
-        # # PFC Bus 8
-        # ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 3,"warm_start_init_point" => warm, "linear_solver" => lsolver)
-        # data_run = deepcopy(data_24h_with_pfc_67bus_B8[t])
-        # data_run["branch"][ac]["br_status"] = 0
-        # results_24h_with_pfc_67bus_B8[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+        # PFC Bus 3
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver)
+        data_run = deepcopy(data_24h_with_pfc_67bus_B3[t])
+        data_run["branch"][ac]["br_status"] = 0
+        results_24h_with_pfc_67bus_B3[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+        # PFC Bus 4
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver)
+        data_run = deepcopy(data_24h_with_pfc_67bus_B4[t])
+        data_run["branch"][ac]["br_status"] = 0
+        results_24h_with_pfc_67bus_B4[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
+        # PFC Bus 8
+        ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => level,"warm_start_init_point" => warm, "linear_solver" => lsolver)
+        data_run = deepcopy(data_24h_with_pfc_67bus_B8[t])
+        data_run["branch"][ac]["br_status"] = 0
+        results_24h_with_pfc_67bus_B8[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
     end
 end
 
@@ -280,9 +281,9 @@ any(ENS_flag_B3)
 any(ENS_flag_B4)
 any(ENS_flag_B8)
 
-sum(ENS_total_B2)
-maximum(ENS_total_B2)
-findall(ENS_flag_B2)
+sum(ENS_total_B8)
+maximum(ENS_total_B8)
+findall(ENS_flag_B8)
 
 
 # Extract results
@@ -345,7 +346,7 @@ boxplot(
     legend = false
 )
 
-savefig("/Users/rgallo/Desktop/Figures/savings_boxplot.png")
+savefig("/Users/rgallo/Desktop/Figures/savings_boxplot_20.4.png")
 
 ## PFC activation
 

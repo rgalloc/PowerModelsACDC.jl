@@ -3,9 +3,91 @@ using PowerModelsACDC ; const _PMACDC = PowerModelsACDC
 using JuMP
 using Ipopt
 using Plots
+import HSL_jll
 
-ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-8, "print_level" => 3) # Changed tolerance to 1e-8 from 1e-6
+
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-8, "print_level" => 3, "linear_solver" => "ma57") # Changed tolerance to 1e-8 from 1e-6
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
+
+
+## Data loading
+
+# No PFC
+data = _PM.parse_file("test/data/PFC/cigre_B4_test.m")
+_PMACDC.process_additional_data!(data)
+# SC4
+data_sc4 = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC4.m")
+_PMACDC.process_additional_data!(data_sc4)
+# SC5
+data_sc5 = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC5.m")
+_PMACDC.process_additional_data!(data_sc5)
+# SC6
+data_sc6 = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC6.m")
+_PMACDC.process_additional_data!(data_sc6)
+# SC7
+data_sc7 = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC7.m")
+_PMACDC.process_additional_data!(data_sc7)
+
+# Run the OPF
+result = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt,; setting = s)
+result_SC4 = _PMACDC.solve_acdcopf_iv(data_sc4, _PM.IVRPowerModel, ipopt,; setting = s)
+result_SC5 = _PMACDC.solve_acdcopf_iv(data_sc5, _PM.IVRPowerModel, ipopt,; setting = s)
+result_SC6 = _PMACDC.solve_acdcopf_iv(data_sc6, _PM.IVRPowerModel, ipopt,; setting = s)
+result_SC7 = _PMACDC.solve_acdcopf_iv(data_sc7, _PM.IVRPowerModel, ipopt,; setting = s)
+
+# Extract results
+
+objective_no_pfc = result["objective"]
+objective_sc4 = result_SC4["objective"]
+objective_sc5 = result_SC5["objective"]
+objective_sc6 = result_SC6["objective"]
+objective_sc7 = result_SC7["objective"]
+
+# With contingency
+data_no_pfc_contingency = deepcopy(data)
+data_sc4_contingency = deepcopy(data_sc4)
+data_sc5_contingency = deepcopy(data_sc5)
+data_sc6_contingency = deepcopy(data_sc6)
+data_sc7_contingency = deepcopy(data_sc7)
+
+# Applying contingency
+data_no_pfc_contingency["branchdc"]["5"]["rateA"] = 4
+data_sc4_contingency["branchdc"]["5"]["rateA"] = 4
+data_sc5_contingency["branchdc"]["5"]["rateA"] = 4
+data_sc6_contingency["branchdc"]["5"]["rateA"] = 4
+data_sc7_contingency["branchdc"]["5"]["rateA"] = 4
+
+# Running the OPF for the contingency case
+result_no_pfc_contingency = _PMACDC.solve_acdcopf_iv(data_no_pfc_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
+result_sc4_contingency = _PMACDC.solve_acdcopf_iv(data_sc4_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
+result_sc5_contingency = _PMACDC.solve_acdcopf_iv(data_sc5_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
+result_sc6_contingency = _PMACDC.solve_acdcopf_iv(data_sc6_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
+result_sc7_contingency = _PMACDC.solve_acdcopf_iv(data_sc7_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
+
+#Extract results for contingency case
+objective_no_pfc_contingency = result_no_pfc_contingency["objective"]
+objective_sc4_contingency = result_sc4_contingency["objective"]
+objective_sc5_contingency = result_sc5_contingency["objective"]
+objective_sc6_contingency = result_sc6_contingency["objective"]
+objective_sc7_contingency = result_sc7_contingency["objective"]
+
+# savings
+savings_sc4 = (objective_no_pfc_contingency - objective_sc4_contingency)/objective_no_pfc_contingency * 100
+savings_sc5 = (objective_no_pfc_contingency - objective_sc5_contingency)/objective_no_pfc_contingency * 100
+savings_sc6 = (objective_no_pfc_contingency - objective_sc6_contingency)/objective_no_pfc_contingency * 100
+savings_sc7 = (objective_no_pfc_contingency - objective_sc7_contingency)/objective_no_pfc_contingency * 100
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## Data without PFC
