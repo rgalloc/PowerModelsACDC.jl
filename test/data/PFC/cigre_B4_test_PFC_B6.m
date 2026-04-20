@@ -74,9 +74,9 @@ mpc.branchdc = [
     2      4     0.00025   0  0    2000  2000  2000   1;
     3      5     0.00750   0  0    2000  2000  2000   1;
     5      6     0.00500   0  0    2000  2000  2000   1;
-    4      6     0.00500   0  0    2000  2000  2000   1;
+    4      7     0.00500   0  0    2000  2000  2000   1;
     3      4     0.00750   0  0    2000  2000  2000   1;
-    3      6     0.00999   0  0    2000  2000  2000   1;
+    3      8     0.00999   0  0    2000  2000  2000   1;
 ];
 
 
@@ -98,4 +98,10 @@ mpc.gencost = [
     2     0       0      3  0.002   80    0;   % Ext-grid B (onshore)
     2     0       0      3  0.002   40    0;   % WF1 (offshore)
     2     0       0      3  0.002   40    0;   % WF2 (offshore)
+];
+
+%% pfc
+%column_names% terminal1_bus terminal2_bus terminal3_bus c_voltage_min c_voltage_max duty_cycle_min duty_cycle_max pfc_current_min pfc_current_max pfc_status
+mpc.pfc = [
+    6       7       8       -4     4    0.0     1.0     -2000    2000 1;
 ];
