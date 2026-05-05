@@ -131,6 +131,11 @@ scale_load_ens!(data_with_pfc_67bus_B3, data_24h_with_pfc_67bus_B3, time_steps_6
 scale_load_ens!(data_with_pfc_67bus_B4, data_24h_with_pfc_67bus_B4, time_steps_67bus, load_profile)
 scale_load_ens!(data_with_pfc_67bus_B8, data_24h_with_pfc_67bus_B8, time_steps_67bus, load_profile)
 
+# scale_load_ens_wind!(data_no_pfc_67bus, data_24h_no_pfc_67bus, time_steps_67bus, load_profile, CF_ON, CF_OFF)
+# scale_load_ens_wind!(data_with_pfc_67bus_B2, data_24h_with_pfc_67bus_B2, time_steps_67bus, load_profile, CF_ON, CF_OFF)
+# scale_load_ens_wind!(data_with_pfc_67bus_B3, data_24h_with_pfc_67bus_B3, time_steps_67bus, load_profile, CF_ON, CF_OFF)
+# scale_load_ens_wind!(data_with_pfc_67bus_B4, data_24h_with_pfc_67bus_B4, time_steps_67bus, load_profile, CF_ON, CF_OFF)
+# scale_load_ens_wind!(data_with_pfc_67bus_B8, data_24h_with_pfc_67bus_B8, time_steps_67bus, load_profile, CF_ON, CF_OFF)
 
 ## Base case results
 
@@ -252,21 +257,6 @@ status_B8 = check_termination_status(results_24h_with_pfc_67bus_B8)
 #     results_24h_with_pfc_67bus_B2[t,c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt; setting = s)
 # end
 
-
-# function which_contingency(times,dc_branches,ac_branches)
-#     contingencies = []
-#     for (t,c) in times
-#         if c == 1
-#             push!(contingencies, "Base case")
-#         elseif c <= length(dc_branches) + 1
-#             push!(contingencies, "DC branch $(dc_branches[c-1])")
-#         else
-#             push!(contingencies, "AC branch $(ac_branches[c - length(dc_branches) - 1])")
-#         end
-#     end
-#     return contingencies
-# end
-
 ## Check ENS
 
 ENS_flag_no_pfc,ENS_total_no_pfc = check_ENS(data_24h_no_pfc_67bus, results_24h_no_pfc_67bus)
@@ -325,6 +315,17 @@ saving_vec_B3 = vcat(vec(savings_per_B3[:, 1]),vec(savings_per_B3[:, 2:11]),vec(
 saving_vec_B4 = vcat(vec(savings_per_B4[:, 1]),vec(savings_per_B4[:, 2:11]),vec(savings_per_B4[:, 12:21]))
 saving_vec_B8 = vcat(vec(savings_per_B8[:, 1]),vec(savings_per_B8[:, 2:11]),vec(savings_per_B8[:, 12:21]))
 
+# Concatenate capacitor voltage data for boxplot
+e_voltage_B2_vec = vcat(vec(e_voltage_B2[:, 1]),vec(e_voltage_B2[:, 2:11]),vec(e_voltage_B2[:, 12:21]))
+e_voltage_B3_vec = vcat(vec(e_voltage_B3[:, 1]),vec(e_voltage_B3[:, 2:11]),vec(e_voltage_B3[:, 12:21]))
+e_voltage_B4_vec = vcat(vec(e_voltage_B4[:, 1]),vec(e_voltage_B4[:, 2:11]),vec(e_voltage_B4[:, 12:21]))
+e_voltage_B8_vec = vcat(vec(e_voltage_B8[:, 1]),vec(e_voltage_B8[:, 2:11]),vec(e_voltage_B8[:, 12:21]))
+
+# voltage in kV
+e_voltage_B2_vec_kv = e_voltage_B2_vec .* 500
+e_voltage_B3_vec_kv = e_voltage_B3_vec .* 500
+e_voltage_B4_vec_kv = e_voltage_B4_vec .* 500
+e_voltage_B8_vec_kv = e_voltage_B8_vec .* 500
 
 
 using StatsPlots
@@ -333,13 +334,14 @@ using StatsPlots
 # Create a boxplot for the savings
 locations = ["Bus 2", "Bus 3", "Bus 4", "Bus 8"]
 
+
 # boxplot([saving_vec_B2,saving_vec_B3,saving_vec_B4,saving_vec_B8], title="Savings from PFCs", ylabel="Savings (%)", xlabel="PFC Location", legend=:topright)
 
 boxplot(
     [saving_vec_B2, saving_vec_B3, saving_vec_B4, saving_vec_B4],
     xticks = (1:4, locations),
     yticks = 0:2:20,
-    ylim = (-0.5, 19),
+    ylim = (-0.5, 20),
     title = "Savings from PFCs at Different Locations",
     xlabel = "PFC Location",
     ylabel = "Savings (%)",
@@ -347,6 +349,32 @@ boxplot(
 )
 
 savefig("/Users/rgallo/Desktop/Figures/savings_boxplot_20.4.png")
+
+boxplot(
+    [e_voltage_B2_vec, e_voltage_B3_vec, e_voltage_B4_vec, e_voltage_B8_vec],
+    xticks = (1:4, locations),
+    ylim = (-0.01, 0.01),
+    yticks = -0.01:0.002:0.01,
+    title = "PFC Capacitor Voltage at Different Locations",
+    xlabel = "PFC Location",
+    ylabel = "Capacitor Voltage (p.u.)",
+    legend = false
+)
+
+savefig("/Users/rgallo/Desktop/Figures/c_voltage_boxplot.png")
+
+boxplot(
+    [e_voltage_B2_vec_kv, e_voltage_B3_vec_kv, e_voltage_B4_vec_kv, e_voltage_B8_vec_kv],
+    xticks = (1:4, locations),
+    ylim = (-5, 5),
+    yticks = -5:1:5,
+    title = "PFC Capacitor Voltage at Different Locations",
+    xlabel = "PFC Location",
+    ylabel = "Capacitor Voltage (kV)",
+    legend = false
+)
+
+savefig("/Users/rgallo/Desktop/Figures/c_voltage_boxplot_kv.png")
 
 ## PFC activation
 
@@ -427,6 +455,40 @@ plot_duty_B3 = duty_cycle_B3[:, c]
 plot_duty_B4 = duty_cycle_B4[:, c]
 plot_duty_B8 = duty_cycle_B8[:, c]
 
+## Capacitor voltage
+
+e_voltage_B2_plot = e_voltage_B2 .* activation_B2
+cases = ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"]
+
+plot(
+    hours,
+    e_voltage_B2_plot[:,1],
+    markershape = :circle,
+    legend = :outerright,
+    label = "Base",
+    title = "PFC Capacitor Voltage over 24 Hours",
+    xticks = 1:24,
+    ylim = (-0.007,0.002),
+    xlabel = "Hour",
+    ylabel = "Capacitor Voltage (pu)"
+)
+
+plot!(
+    hours,
+    e_voltage_B2_plot[:,2:11],
+    markershape = :square,
+    label = "DC N-1"
+)
+
+plot!(
+    hours,
+    e_voltage_B2[:,12:21],
+    markershape = :star,
+    label = "AC N-1"
+)
+
+savefig("/Users/rgallo/Desktop/Figures/c_voltage_plot.png")
+
 plot(
     hours,
     plot_duty_B2,
@@ -471,11 +533,225 @@ plot!(
 
 plot!(hours,load_profile, label = "Load Profile", linestyle = :dash, color = :black)
 
+#Extract dc branch flows for all branches and the no pfc and pfc at B2 cases
 
+# DC Branch 1
+# dc1_flow_no_pfc = [ haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "1") ? results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["1"]["pf"] : NaN for t in time_steps_67bus, c in 1:n_cont]
+dc1_flow_no_pfc = [ results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["1"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "1")]
+dc1_flow_B2 = [ results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["1"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "1")]
+delta_dc1 = abs.(dc1_flow_B2) - abs.(dc1_flow_no_pfc)
 
-function identify_solution_status(solution_status)
-    
+# DC Branch 2
+dc2_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["2"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "2")]
+dc2_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["2"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "2")]
+delta_dc2 = abs.(dc2_flow_B2) - abs.(dc2_flow_no_pfc)
+
+# DC Branch 3
+dc3_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["3"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "3")]
+dc3_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["3"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "3")]
+delta_dc3 = abs.(dc3_flow_B2) - abs.(dc3_flow_no_pfc)
+
+# DC Branch 4
+dc4_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["4"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "4")]
+dc4_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["4"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "4")]
+delta_dc4 = abs.(dc4_flow_B2) - abs.(dc4_flow_no_pfc)
+
+# DC Branch 5
+dc5_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["5"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "5")]
+dc5_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["5"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "5")]
+delta_dc5 = abs.(dc5_flow_B2) - abs.(dc5_flow_no_pfc)
+
+# DC Branch 6
+dc6_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["6"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "6")]
+dc6_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["6"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "6")]
+delta_dc6 = abs.(dc6_flow_B2) - abs.(dc6_flow_no_pfc)
+
+# DC Branch 7
+dc7_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["7"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "7")]
+dc7_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["7"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "7")]
+delta_dc7 = abs.(dc7_flow_B2) - abs.(dc7_flow_no_pfc)
+
+# DC Branch 8
+dc8_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["8"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "8")]
+dc8_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["8"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "8")]
+delta_dc8 = abs.(dc8_flow_B2) - abs.(dc8_flow_no_pfc)
+
+# DC Branch 9
+dc9_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["9"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "9")]
+dc9_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["9"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "9")]
+delta_dc9 = abs.(dc9_flow_B2) - abs.(dc9_flow_no_pfc)
+
+# DC Branch 10
+dc10_flow_no_pfc = [results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["10"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "10")]
+dc10_flow_B2 = [results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["10"]["pf"] for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "10")]
+delta_dc10 = abs.(dc10_flow_B2) - abs.(dc10_flow_no_pfc)
+
+# boxplot
+
+branches = ["DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10"]
+
+boxplot(
+    [delta_dc1, delta_dc2, delta_dc3, delta_dc4, delta_dc5, delta_dc6, delta_dc7, delta_dc8, delta_dc9, delta_dc10],
+    xticks = (1:10, branches),
+    yticks = -6:2:8,
+    ylim = (-6, 8),
+    title = "Change in DC Branch Flows Due to PFC at Bus 2",
+    xlabel = "DC Branches",
+    ylabel = "Change in Active Power Flow (p.u.)",
+    legend = false
+)
+savefig("/Users/rgallo/Desktop/Figures/dc_flow_change_boxplot.png")
+
+violin(
+    [delta_dc1, delta_dc2, delta_dc3, delta_dc4, delta_dc5, delta_dc6, delta_dc7, delta_dc8, delta_dc9, delta_dc10],
+    xticks = (1:10, branches),
+    title = "Change in DC Branch Flows Due to PFC at Bus 2",
+    xlabel = "DC Branches",
+    yticks = -6:2:8,
+    ylim = (-6, 8),
+    ylabel = "Change in Active Power Flow (p.u.)",
+    legend = false
+)
+
+savefig("/Users/rgallo/Desktop/Figures/dc_flow_change_violin.png")
+
+# Heatmap of DC 5 flow change across all contingencies
+
+dc5_no_pfc = [ haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "5") ? results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["5"]["pf"] : NaN for t in time_steps_67bus, c in 1:n_cont]
+dc5_with_pfc = [ haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "5") ? results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["5"]["pf"] : NaN for t in time_steps_67bus, c in 1:n_cont]
+delta_dc5_plot = abs.(dc5_with_pfc) - abs.(dc5_no_pfc)
+
+heatmap(
+    delta_dc5_plot',
+    xticks = (1:24, string.(time_steps_67bus)),
+    yticks = (1:n_cont, ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"]),
+    title = "Change in DC Branch 5 Flow Due to PFC at Bus 2",
+    xlabel = "Time Steps",
+    ylabel = "Contingencies",
+    clim = (-7, 7),
+    color = :balance,
+    colorbar_title = "Change in Flow (p.u.)"
+)
+
+dc9_no_pfc = [ haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "9") ? results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"]["9"]["pf"] : NaN for t in time_steps_67bus, c in 1:n_cont]
+dc9_with_pfc = [ haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "9") ? results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"]["9"]["pf"] : NaN for t in time_steps_67bus, c in 1:n_cont]
+delta_dc9_plot = abs.(dc9_with_pfc) - abs.(dc9_no_pfc)
+
+heatmap(
+    delta_dc9_plot',
+    xticks = (1:24, string.(time_steps_67bus)),
+    yticks = (1:n_cont, ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"]),
+    clim = (-7, 7),
+    title = "Change in DC Branch 9 Flow Due to PFC at Bus 2",
+    xlabel = "Time Steps",
+    ylabel = "Contingencies",
+    color = :balance,
+    colorbar_title = "Change in Flow (p.u.)"
+)
+
+## With loading percentage
+
+function dc_loading(results,t,c,branch_id,pmax)
+    if haskey(results[t, c]["solution"]["branchdc"], branch_id)
+        pf = results[t, c]["solution"]["branchdc"][branch_id]["pf"]
+        pt = results[t, c]["solution"]["branchdc"][branch_id]["pt"]
+        return max(abs(pf), abs(pt)) / pmax
+    else
+        return NaN
+    end
 end
+
+dc1_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "1", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "1")]
+dc1_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "1", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "1")]
+delta_dc1_loading = (dc1_loading_with_pfc .- dc1_loading_no_pfc) .* 100
+
+dc_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "2", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "2")]
+dc2_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "2", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "2")]
+delta_dc2_loading = (dc2_loading_with_pfc .- dc_loading_no_pfc) .* 100
+
+dc3_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "3", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "3")]
+dc3_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "3", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "3")]
+delta_dc3_loading = (dc3_loading_with_pfc .- dc3_loading_no_pfc) .* 100
+
+dc4_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "4", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "4")]
+dc4_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "4", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "4")]
+delta_dc4_loading = (dc4_loading_with_pfc .- dc4_loading_no_pfc) .* 100
+
+dc5_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "5", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "5")]
+dc5_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "5", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "5")]
+delta_dc5_loading = (dc5_loading_with_pfc .- dc5_loading_no_pfc) .* 100
+
+dc6_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "6", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "6")]
+dc6_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "6", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "6")]
+delta_dc6_loading = (dc6_loading_with_pfc .- dc6_loading_no_pfc) .* 100
+
+dc7_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "7", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "7")]
+dc7_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "7", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "7")]
+delta_dc7_loading = (dc7_loading_with_pfc .- dc7_loading_no_pfc) .* 100
+
+dc8_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "8", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "8")]
+dc8_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "8", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "8")]
+delta_dc8_loading = (dc8_loading_with_pfc .- dc8_loading_no_pfc) .* 100
+
+dc9_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "9", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "9")]
+dc9_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "9", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "9")]
+delta_dc9_loading = (dc9_loading_with_pfc .- dc9_loading_no_pfc) .* 100
+
+dc10_loading_no_pfc = [dc_loading(results_24h_no_pfc_67bus, t, c, "10", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_no_pfc_67bus[t, c]["solution"]["branchdc"], "10")]
+dc10_loading_with_pfc = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "10", 15.75) for t in time_steps_67bus, c in 1:n_cont if haskey(results_24h_with_pfc_67bus_B2[t, c]["solution"]["branchdc"], "10")]
+delta_dc10_loading = (dc10_loading_with_pfc .- dc10_loading_no_pfc) .* 100
+
+# Boxplot with percentage
+
+branches = ["DC1*", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9*", "DC10"]
+boxplot(
+    [delta_dc1_loading, delta_dc2_loading, delta_dc3_loading, delta_dc4_loading, delta_dc5_loading, delta_dc6_loading, delta_dc7_loading, delta_dc8_loading, delta_dc9_loading, delta_dc10_loading],
+    xticks = (1:10, branches),
+    yticks = -50:10:50,
+    ylim = (-50, 50),
+    title = "Change in DC Branch Loading Due to PFC at Bus 2",
+    xlabel = "DC Branches",
+    ylabel = "Change in Loading (%)",
+    legend = false
+)
+savefig("/Users/rgallo/Desktop/Figures/dc_loading_change_boxplot.png")
+
+# Heatmap of DC 5 and 9 loading change across all contingencies
+dc5_loading_no_pfc_plot = [dc_loading(results_24h_no_pfc_67bus, t, c, "5", 15.75) for t in time_steps_67bus, c in 1:n_cont]
+dc5_loading_with_pfc_plot = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "5", 15.75) for t in time_steps_67bus, c in 1:n_cont]
+delta_dc5_loading_plot = (dc5_loading_with_pfc_plot .- dc5_loading_no_pfc_plot) .* 100
+
+dc9_loading_no_pfc_plot = [dc_loading(results_24h_no_pfc_67bus, t, c, "9", 15.75) for t in time_steps_67bus, c in 1:n_cont]
+dc9_loading_with_pfc_plot = [dc_loading(results_24h_with_pfc_67bus_B2, t, c, "9", 15.75) for t in time_steps_67bus, c in 1:n_cont]
+delta_dc9_loading_plot = (dc9_loading_with_pfc_plot .- dc9_loading_no_pfc_plot) .* 100
+
+cases = ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"]
+
+heatmap(
+    delta_dc5_loading_plot',
+    xticks = (1:24, string.(time_steps_67bus)),
+    yticks = (1:n_cont, cases),
+    title = "Change in DC Branch 5 Loading Due to PFC at Bus 2",
+    xlabel = "Time Steps",
+    ylabel = "Contingencies",
+    clim = (-50, 50),
+    color = :balance,
+    colorbar_title = "Change in Loading (%)"
+)
+savefig("/Users/rgallo/Desktop/Figures/dc5_loading_change_heatmap.png")
+
+heatmap(
+    delta_dc9_loading_plot',
+    xticks = (1:24, string.(time_steps_67bus)),
+    yticks = (1:n_cont, cases),
+    title = "Change in DC Branch 9 Loading Due to PFC at Bus 2",
+    xlabel = "Time Steps",
+    ylabel = "Contingencies",
+    clim = (-50, 50),
+    color = :balance,
+    colorbar_title = "Change in Loading (%)"
+)
+savefig("/Users/rgallo/Desktop/Figures/dc9_loading_change_heatmap.png")
 
 # data_24h_no_pfc_67bus = Vector{Dict{String,Any}}(undef, length(time_steps_67bus))
 # results_24h_no_pfc_67bus = Vector{Dict{String,Any}}(undef, length(time_steps_67bus))
@@ -1634,6 +1910,29 @@ function scale_load_ens!(data, data_24h, time_steps, p_mult)
             if gen["index"] > 20
                 gen["pmax"] *= p_mult[t]
             end
+        end
+        data_24h[t] = data_copy
+    end
+end
+
+function scale_load_ens_wind!(data, data_24h, time_steps, p_mult,cf_on,cf_off)
+    offshore_wind_ids = ["20"]
+    onshore_wind_ids = ["2","4"]
+    for t in time_steps
+        data_copy = deepcopy(data)
+        for (load_id, load_data) in data_copy["load"]
+            load_data["pd"] *= p_mult[t]
+        end
+        for (gen_id, gen) in data_copy["gen"]
+            if gen["index"] > 20
+                gen["pmax"] *= p_mult[t]
+            end
+        end
+        for wind_id in offshore_wind_ids
+            data_copy["gen"][wind_id]["pmax"] *= cf_off[t]
+        end
+        for wind_id in onshore_wind_ids
+            data_copy["gen"][wind_id]["pmax"] *= cf_on[t]
         end
         data_24h[t] = data_copy
     end

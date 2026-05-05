@@ -6,78 +6,270 @@ using Plots
 import HSL_jll
 
 
-ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-8, "print_level" => 3, "linear_solver" => "ma57") # Changed tolerance to 1e-8 from 1e-6
+ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-8, "print_level" => 0, "linear_solver" => "ma57") # Changed tolerance to 1e-8 from 1e-6
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
 
 
 ## Data loading
 
 # No PFC
-data = _PM.parse_file("test/data/PFC/cigre_B4_test.m")
-_PMACDC.process_additional_data!(data)
+data_no_pfc = _PM.parse_file("test/data/PFC/cigre_B4_test.m")
+_PMACDC.process_additional_data!(data_no_pfc)
+# data_no_pfc["branchdc"]["3"]["rateA"] = 4.0
+add_ens_gens!(data_no_pfc)
 # SC4
 data_sc4 = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC4.m")
 _PMACDC.process_additional_data!(data_sc4)
+# data_sc4["branchdc"]["3"]["rateA"] = 4.0
+add_ens_gens!(data_sc4)
 # SC5
 data_sc5 = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC5.m")
 _PMACDC.process_additional_data!(data_sc5)
+add_ens_gens!(data_sc5)
 # SC6
 data_sc6 = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC6.m")
 _PMACDC.process_additional_data!(data_sc6)
+add_ens_gens!(data_sc6)
 # SC7
 data_sc7 = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC7.m")
 _PMACDC.process_additional_data!(data_sc7)
+add_ens_gens!(data_sc7)
 
-# Run the OPF
-result = _PMACDC.solve_acdcopf_iv(data, _PM.IVRPowerModel, ipopt,; setting = s)
-result_SC4 = _PMACDC.solve_acdcopf_iv(data_sc4, _PM.IVRPowerModel, ipopt,; setting = s)
-result_SC5 = _PMACDC.solve_acdcopf_iv(data_sc5, _PM.IVRPowerModel, ipopt,; setting = s)
-result_SC6 = _PMACDC.solve_acdcopf_iv(data_sc6, _PM.IVRPowerModel, ipopt,; setting = s)
-result_SC7 = _PMACDC.solve_acdcopf_iv(data_sc7, _PM.IVRPowerModel, ipopt,; setting = s)
+for data in [data_no_pfc, data_sc4, data_sc5, data_sc6, data_sc7]
+    for (branchdc_id, branchdc) in data["branchdc"]
+        branchdc["rateA"] = 5.0
+    end
+end
+
+
+# Contingencies
+ac_branches = ["1"]
+dc_branches = ["1","2","3","4","5","6","7"]
+n_cont = length(ac_branches) + length(dc_branches) + 1 # +1 for base case
+
+# Results and Data
+results_no_pfc = Vector{Dict{String,Any}}(undef, n_cont)
+results_pfc_sc4 = Vector{Dict{String,Any}}(undef, n_cont)
+results_pfc_sc5 = Vector{Dict{String,Any}}(undef, n_cont)
+results_pfc_sc6 = Vector{Dict{String,Any}}(undef, n_cont)
+results_pfc_sc7 = Vector{Dict{String,Any}}(undef, n_cont)
+
+#Base
+results_no_pfc[1]  = _PMACDC.solve_acdcopf_iv(data_no_pfc, _PM.IVRPowerModel, ipopt,; setting = s)
+results_pfc_sc4[1] = _PMACDC.solve_acdcopf_iv(data_sc4, _PM.IVRPowerModel, ipopt,; setting = s)
+results_pfc_sc5[1] = _PMACDC.solve_acdcopf_iv(data_sc5, _PM.IVRPowerModel, ipopt,; setting = s)
+results_pfc_sc6[1] = _PMACDC.solve_acdcopf_iv(data_sc6, _PM.IVRPowerModel, ipopt,; setting = s)
+results_pfc_sc7[1] = _PMACDC.solve_acdcopf_iv(data_sc7, _PM.IVRPowerModel, ipopt,; setting = s)
+
+#DC N-1
+for (i,dc) in enumerate(dc_branches)
+    c = i + 1
+    #No PFC
+    data_run = deepcopy(data_no_pfc)
+    data_run["branchdc"][dc]["status"] = 0
+    results_no_pfc[c]  = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+    # SC4
+    data_run = deepcopy(data_sc4)
+    data_run["branchdc"][dc]["status"] = 0
+    results_pfc_sc4[c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+    #SC5
+    data_run = deepcopy(data_sc5)
+    data_run["branchdc"][dc]["status"] = 0
+    results_pfc_sc5[c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+    #SC6
+    data_run = deepcopy(data_sc6)
+    data_run["branchdc"][dc]["status"] = 0
+    results_pfc_sc6[c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+    #SC7
+    data_run = deepcopy(data_sc7)
+    data_run["branchdc"][dc]["status"] = 0
+    results_pfc_sc7[c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+end
+
+#AC N-1
+for (i,ac) in enumerate(ac_branches)
+    c = i + 1 + length(dc_branches)
+    #No PFC
+    data_run = deepcopy(data_no_pfc)
+    data_run["branch"][ac]["br_status"] = 0
+    results_no_pfc[c]  = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+    # SC4
+    data_run = deepcopy(data_sc4)
+    data_run["branch"][ac]["br_status"] = 0
+    results_pfc_sc4[c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+    #SC5
+    data_run = deepcopy(data_sc5)
+    data_run["branch"][ac]["br_status"] = 0
+    results_pfc_sc5[c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+    #SC6
+    data_run = deepcopy(data_sc6)
+    data_run["branch"][ac]["br_status"] = 0
+    results_pfc_sc6[c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+    #SC7
+    data_run = deepcopy(data_sc7)
+    data_run["branch"][ac]["br_status"] = 0
+    results_pfc_sc7[c] = _PMACDC.solve_acdcopf_iv(data_run, _PM.IVRPowerModel, ipopt,; setting = s)
+end
+
+# Check termination_status
+status_no_pfc = check_termination_status(results_no_pfc)
+status_sc4 = check_termination_status(results_pfc_sc4)
+status_sc5 = check_termination_status(results_pfc_sc5)
+status_sc6 = check_termination_status(results_pfc_sc6)
+status_sc7 = check_termination_status(results_pfc_sc7)
+
 
 # Extract results
 
-objective_no_pfc = result["objective"]
-objective_sc4 = result_SC4["objective"]
-objective_sc5 = result_SC5["objective"]
-objective_sc6 = result_SC6["objective"]
-objective_sc7 = result_SC7["objective"]
+objective_no_pfc = [results_no_pfc[c]["objective"] for c in 1:n_cont]
+objective_sc4 = [results_pfc_sc4[c]["objective"] for c in 1:n_cont]
+objective_sc5 = [results_pfc_sc5[c]["objective"] for c in 1:n_cont]
+objective_sc6 = [results_pfc_sc6[c]["objective"] for c in 1:n_cont]
+objective_sc7 = [results_pfc_sc7[c]["objective"] for c in 1:n_cont]
 
-# With contingency
-data_no_pfc_contingency = deepcopy(data)
-data_sc4_contingency = deepcopy(data_sc4)
-data_sc5_contingency = deepcopy(data_sc5)
-data_sc6_contingency = deepcopy(data_sc6)
-data_sc7_contingency = deepcopy(data_sc7)
+# Computation time
+time_no_pfc = [results_no_pfc[c]["solve_time"] for c in 1:n_cont]
+time_sc4 = [results_pfc_sc4[c]["solve_time"] for c in 1:n_cont]
+time_sc5 = [results_pfc_sc5[c]["solve_time"] for c in 1:n_cont]
+time_sc6 = [results_pfc_sc6[c]["solve_time"] for c in 1:n_cont]
+time_sc7 = [results_pfc_sc7[c]["solve_time"] for c in 1:n_cont]
 
-# Applying contingency
-data_no_pfc_contingency["branchdc"]["5"]["rateA"] = 4
-data_sc4_contingency["branchdc"]["5"]["rateA"] = 4
-data_sc5_contingency["branchdc"]["5"]["rateA"] = 4
-data_sc6_contingency["branchdc"]["5"]["rateA"] = 4
-data_sc7_contingency["branchdc"]["5"]["rateA"] = 4
+# Curtailment check
+# Base Wind generation
+wind_1_no_pfc = [results_no_pfc[1]["solution"]["gen"]["3"]["pg"]]
+wind_2_no_pfc = [results_no_pfc[1]["solution"]["gen"]["4"]["pg"]]
 
-# Running the OPF for the contingency case
-result_no_pfc_contingency = _PMACDC.solve_acdcopf_iv(data_no_pfc_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
-result_sc4_contingency = _PMACDC.solve_acdcopf_iv(data_sc4_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
-result_sc5_contingency = _PMACDC.solve_acdcopf_iv(data_sc5_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
-result_sc6_contingency = _PMACDC.solve_acdcopf_iv(data_sc6_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
-result_sc7_contingency = _PMACDC.solve_acdcopf_iv(data_sc7_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
+# Wind generation in each scenario
+wind_1_no_pfc_base = [results_no_pfc[c]["solution"]["gen"]["3"]["pg"] for c in 2:n_cont]
+wind_1_sc4 = [results_pfc_sc4[c]["solution"]["gen"]["3"]["pg"] for c in 2:n_cont]
+wind_1_sc5 = [results_pfc_sc5[c]["solution"]["gen"]["3"]["pg"] for c in 2:n_cont]
+wind_1_sc6 = [results_pfc_sc6[c]["solution"]["gen"]["3"]["pg"] for c in 2:n_cont]
+wind_1_sc7 = [results_pfc_sc7[c]["solution"]["gen"]["3"]["pg"] for c in 2:n_cont]
 
-#Extract results for contingency case
-objective_no_pfc_contingency = result_no_pfc_contingency["objective"]
-objective_sc4_contingency = result_sc4_contingency["objective"]
-objective_sc5_contingency = result_sc5_contingency["objective"]
-objective_sc6_contingency = result_sc6_contingency["objective"]
-objective_sc7_contingency = result_sc7_contingency["objective"]
+wind_2_no_pfc_base = [results_no_pfc[c]["solution"]["gen"]["4"]["pg"] for c in 2:n_cont]
+wind_2_sc4 = [results_pfc_sc4[c]["solution"]["gen"]["4"]["pg"] for c in 2:n_cont]
+wind_2_sc5 = [results_pfc_sc5[c]["solution"]["gen"]["4"]["pg"] for c in 2:n_cont]
+wind_2_sc6 = [results_pfc_sc6[c]["solution"]["gen"]["4"]["pg"] for c in 2:n_cont]
+wind_2_sc7 = [results_pfc_sc7[c]["solution"]["gen"]["4"]["pg"] for c in 2:n_cont]
+
+# Delta wind
+delta_wind_1_no_pfc = wind_1_no_pfc_base .- wind_1_no_pfc
+delta_wind_2_no_pfc = wind_2_no_pfc_base .- wind_2_no_pfc
+delta_wind_no_pfc = delta_wind_1_no_pfc .+ delta_wind_2_no_pfc
+
+delta_wind_1_sc4 = wind_1_sc4 .- wind_1_no_pfc
+delta_wind_2_sc4 = wind_2_sc4 .- wind_2_no_pfc
+delta_wind_sc4 = delta_wind_1_sc4 .+ delta_wind_2_sc4
+
+delta_wind_1_sc5 = wind_1_sc5 .- wind_1_no_pfc
+delta_wind_2_sc5 = wind_2_sc5 .- wind_2_no_pfc
+delta_wind_sc5 = delta_wind_1_sc5 .+ delta_wind_2_sc5
+
+delta_wind_1_sc6 = wind_1_sc6 .- wind_1_no_pfc
+delta_wind_2_sc6 = wind_2_sc6 .- wind_2_no_pfc
+delta_wind_sc6 = delta_wind_1_sc6 .+ delta_wind_2_sc6
+
+delta_wind_1_sc7 = wind_1_sc7 .- wind_1_no_pfc
+delta_wind_2_sc7 = wind_2_sc7 .- wind_2_no_pfc
+delta_wind_sc7 = delta_wind_1_sc7 .+ delta_wind_2_sc7
+
+# Check HVDC loading > 90% for any scenario
+hvdc_loading_no_pfc = [hvdc_loading(data_no_pfc, results_no_pfc[c]) for c in 1:n_cont]
+hvdc_loading_sc4 = [hvdc_loading(data_sc4, results_pfc_sc4[c]) for c in 1:n_cont]
+hvdc_loading_sc5 = [hvdc_loading(data_sc5, results_pfc_sc5[c]) for c in 1:n_cont]
+hvdc_loading_sc6 = [hvdc_loading(data_sc6, results_pfc_sc6[c]) for c in 1:n_cont]
+hvdc_loading_sc7 = [hvdc_loading(data_sc7, results_pfc_sc7[c]) for c in 1:n_cont]
+
+# Check branch DC loading > 90% for any scenario
+branchdc_loading_no_pfc = [branch_dc_loading(data_no_pfc, results_no_pfc[c]) for c in 1:n_cont]
+branchdc_loading_sc4 = [branch_dc_loading(data_sc4, results_pfc_sc4[c]) for c in 1:n_cont]
+branchdc_loading_sc5 = [branch_dc_loading(data_sc5, results_pfc_sc5[c]) for c in 1:n_cont]
+branchdc_loading_sc6 = [branch_dc_loading(data_sc6, results_pfc_sc6[c]) for c in 1:n_cont]
+branchdc_loading_sc7 = [branch_dc_loading(data_sc7, results_pfc_sc7[c]) for c in 1:n_cont]
+
+# System losses Generation - Load
+# Maybe consider removing the ENS to avoid double counting of losses in the case of load shedding
+losses_no_pfc = [total_losses(data_no_pfc, results_no_pfc[c]) for c in 1:n_cont]
+losses_sc4 = [total_losses(data_sc4, results_pfc_sc4[c]) for c in 1:n_cont]
+losses_sc5 = [total_losses(data_sc5, results_pfc_sc5[c]) for c in 1:n_cont]
+losses_sc6 = [total_losses(data_sc6, results_pfc_sc6[c]) for c in 1:n_cont]
+losses_sc7 = [total_losses(data_sc7, results_pfc_sc7[c]) for c in 1:n_cont] 
+
+# Generation change
+gen_1_no_pfc = [results_no_pfc[1]["solution"]["gen"]["1"]["pg"]]
+gen_2_no_pfc = [results_no_pfc[1]["solution"]["gen"]["2"]["pg"]]
+
+# No pfc
+gen_1_no_pfc_base = [results_no_pfc[c]["solution"]["gen"]["1"]["pg"] for c in 2:n_cont]
+gen_2_no_pfc_base = [results_no_pfc[c]["solution"]["gen"]["2"]["pg"] for c in 2:n_cont]
+# With PFC
+gen_1_sc4 = [results_pfc_sc4[c]["solution"]["gen"]["1"]["pg"] for c in 2:n_cont]
+gen_2_sc4 = [results_pfc_sc4[c]["solution"]["gen"]["2"]["pg"] for c in 2:n_cont]
+gen_1_sc5 = [results_pfc_sc5[c]["solution"]["gen"]["1"]["pg"] for c in 2:n_cont]
+gen_2_sc5 = [results_pfc_sc5[c]["solution"]["gen"]["2"]["pg"] for c in 2:n_cont]
+gen_1_sc6 = [results_pfc_sc6[c]["solution"]["gen"]["1"]["pg"] for c in 2:n_cont]
+gen_2_sc6 = [results_pfc_sc6[c]["solution"]["gen"]["2"]["pg"] for c in 2:n_cont]
+gen_1_sc7 = [results_pfc_sc7[c]["solution"]["gen"]["1"]["pg"] for c in 2:n_cont]
+gen_2_sc7 = [results_pfc_sc7[c]["solution"]["gen"]["2"]["pg"] for c in 2:n_cont]
+
+# Delta gen
+delta_gen_1_no_pfc = gen_1_no_pfc_base .- gen_1_no_pfc
+delta_gen_2_no_pfc = gen_2_no_pfc_base .- gen_2_no_pfc
+delta_gen_no_pfc = delta_gen_1_no_pfc .+ delta_gen_2_no_pfc
+
+delta_gen_1_sc4 = gen_1_sc4 .- gen_1_no_pfc
+delta_gen_2_sc4 = gen_2_sc4 .- gen_2_no_pfc
+delta_gen_sc4 = delta_gen_1_sc4 .+ delta_gen_2_sc4
+
+delta_gen_1_sc5 = gen_1_sc5 .- gen_1_no_pfc
+delta_gen_2_sc5 = gen_2_sc5 .- gen_2_no_pfc
+delta_gen_sc5 = delta_gen_1_sc5 .+ delta_gen_2_sc5
+
+delta_gen_1_sc6 = gen_1_sc6 .- gen_1_no_pfc
+delta_gen_2_sc6 = gen_2_sc6 .- gen_2_no_pfc
+delta_gen_sc6 = delta_gen_1_sc6 .+ delta_gen_2_sc6
+
+delta_gen_1_sc7 = gen_1_sc7 .- gen_1_no_pfc
+delta_gen_2_sc7 = gen_2_sc7 .- gen_2_no_pfc
+delta_gen_sc7 = delta_gen_1_sc7 .+ delta_gen_2_sc7
+
+# DC voltage magnitude margin
+
+dc_bus_margin_no_pfc = [dc_bus_margin(data_no_pfc, results_no_pfc[c]) for c in 1:n_cont]
+dc_bus_margin_sc4 = [dc_bus_margin(data_sc4, results_pfc_sc4[c]) for c in 1:n_cont]
+dc_bus_margin_sc5 = [dc_bus_margin(data_sc5, results_pfc_sc5[c]) for c in 1:n_cont]
+dc_bus_margin_sc6 = [dc_bus_margin(data_sc6, results_pfc_sc6[c]) for c in 1:n_cont]
+dc_bus_margin_sc7 = [dc_bus_margin(data_sc7, results_pfc_sc7[c]) for c in 1:n_cont]
+
 
 # savings
-savings_sc4 = (objective_no_pfc_contingency - objective_sc4_contingency)/objective_no_pfc_contingency * 100
-savings_sc5 = (objective_no_pfc_contingency - objective_sc5_contingency)/objective_no_pfc_contingency * 100
-savings_sc6 = (objective_no_pfc_contingency - objective_sc6_contingency)/objective_no_pfc_contingency * 100
-savings_sc7 = (objective_no_pfc_contingency - objective_sc7_contingency)/objective_no_pfc_contingency * 100
+savings_sc4 = (objective_no_pfc .- objective_sc4)./objective_no_pfc * 100
+savings_sc5 = (objective_no_pfc .- objective_sc5)./objective_no_pfc * 100
+savings_sc6 = (objective_no_pfc .- objective_sc6)./objective_no_pfc * 100
+savings_sc7 = (objective_no_pfc .- objective_sc7)./objective_no_pfc * 100
 
+savings_sc4[abs.(savings_sc4) .< 1e-4] .= 0
+savings_sc5[abs.(savings_sc5) .< 1e-4] .= 0
+savings_sc6[abs.(savings_sc6) .< 1e-4] .= 0
+savings_sc7[abs.(savings_sc7) .< 1e-4] .= 0
 
+# Duty cycle
+duty_cycle_sc4 = [results_pfc_sc4[c]["solution"]["pfc"]["1"]["duty_cycle"] for c in 1:n_cont]
+duty_cycle_sc5_1 = [results_pfc_sc5[c]["solution"]["pfc"]["1"]["duty_cycle"] for c in 1:n_cont]
+duty_cycle_sc5_2 = [results_pfc_sc5[c]["solution"]["pfc"]["2"]["duty_cycle"] for c in 1:n_cont]
+duty_cycle_sc6_1 = [results_pfc_sc6[c]["solution"]["pfc"]["1"]["duty_cycle"] for c in 1:n_cont]
+duty_cycle_sc6_2 = [results_pfc_sc6[c]["solution"]["pfc"]["2"]["duty_cycle"] for c in 1:n_cont]
+duty_cycle_sc7_1 = [results_pfc_sc7[c]["solution"]["pfc"]["1"]["duty_cycle"] for c in 1:n_cont]
+duty_cycle_sc7_2 = [results_pfc_sc7[c]["solution"]["pfc"]["2"]["duty_cycle"] for c in 1:n_cont]
+
+# E Voltage
+voltage_sc4 = [results_pfc_sc4[c]["solution"]["pfc"]["1"]["c_voltage"] for c in 1:n_cont]
+voltage_sc5_1 = [results_pfc_sc5[c]["solution"]["pfc"]["1"]["c_voltage"] for c in 1:n_cont]
+voltage_sc5_2 = [results_pfc_sc5[c]["solution"]["pfc"]["2"]["c_voltage"] for c in 1:n_cont]
+voltage_sc6_1 = [results_pfc_sc6[c]["solution"]["pfc"]["1"]["c_voltage"] for c in 1:n_cont]
+voltage_sc6_2 = [results_pfc_sc6[c]["solution"]["pfc"]["2"]["c_voltage"] for c in 1:n_cont]
+voltage_sc7_1 = [results_pfc_sc7[c]["solution"]["pfc"]["1"]["c_voltage"] for c in 1:n_cont]
+voltage_sc7_2 = [results_pfc_sc7[c]["solution"]["pfc"]["2"]["c_voltage"] for c in 1:n_cont]
 
 
 
@@ -96,7 +288,8 @@ _PMACDC.process_additional_data!(data)
 
 ## Data with PFC
 # data_pfc = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_B5.m")
-data_pfc = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_2.m")
+# data_pfc = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_2.m")
+data_pfc = _PM.parse_file("test/data/PFC/cigre_B4_test_PFC_SC4.m")
 _PMACDC.process_additional_data!(data_pfc)
 
 # data_derate["branchdc"]["3"]["rateA"] = 3
@@ -129,7 +322,7 @@ data_derate_pfc["branchdc"]["3"]["rateA"] = 4
 result_derate = _PMACDC.solve_acdcopf_iv(data_derate, _PM.IVRPowerModel, ipopt,; setting = s)
 result_derate_pfc = _PMACDC.solve_acdcopf_iv(data_derate_pfc, _PM.IVRPowerModel, ipopt,; setting = s)
 
-
+saving = (result_derate["objective"] - result_derate_pfc["objective"])/result_derate["objective"] * 100
 ## N-1 contingencies
 # DC line 7 outage
 #without PFC
@@ -146,6 +339,8 @@ data_pfc_contingency["branchdc"]["7"]["status"] = 0
 ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-8, "print_level" => 5)
 result_pfc_contingency = _PMACDC.solve_acdcopf_iv(data_pfc_contingency, _PM.IVRPowerModel, ipopt,; setting = s)
 
+saving = (result_contingency["objective"] - result_pfc_contingency["objective"])/result_contingency["objective"] * 100
+
 # DC line 5 outage
 #without PFC
 data_contingency_5 = deepcopy(data)
@@ -160,6 +355,8 @@ data_pfc_contingency_5["branchdc"]["5"]["status"] = 0
 
 ipopt = JuMP.optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-8, "print_level" => 5)
 result_pfc_contingency_5 = _PMACDC.solve_acdcopf_iv(data_pfc_contingency_5, _PM.IVRPowerModel, ipopt,; setting = s)
+
+saving = (result_contingency_5["objective"] - result_pfc_contingency_5["objective"])/result_contingency_5["objective"] * 100
 
 ## Higher load
 #Without PFC
@@ -656,9 +853,46 @@ diff = [objective_values_no_pfc[t] - objective_values_pfc[t] for t in time_steps
 diff_perct = [diff[t] / objective_values_no_pfc[t] * 100 for t in time_steps]
 sum_diff = sum(diff)
 
+function hvdc_loading(data,result;threshold = 90)
+    loaded = 0
+    for (convdc_id,convdc) in result["solution"]["convdc"]
+        ic_r = convdc["ic_r"]
+        ic_i = convdc["ic_i"]
+        imax = data["convdc"][convdc_id]["Imax"]
+        loading = sqrt(ic_r^2 + ic_i^2) / imax * 100
+        if loading > threshold
+            loaded += 1
+        end
+    end
+end
 
+function branch_dc_loading(data,result;threshold = 90)
+    loaded = 0
+    for (branchdc_id, branchdc) in result["solution"]["branchdc"]
+        pf = branchdc["pf"]
+        pt = branchdc["pt"]
+        rateA = data["branchdc"][branchdc_id]["rateA"]
+        loading = max(abs(pf),abs(pt)) / rateA * 100
+        if loading > threshold
+            loaded += 1
+        end
+    end
+end
 
-
+function dc_bus_margin(data,result; threshold = 20)
+    margin = 0
+    for (busdc_id, busdc) in result["solution"]["busdc"]
+        vm = busdc["vm"]
+        vmin = data["busdc"][busdc_id]["Vdcmin"]
+        vmax = data["busdc"][busdc_id]["Vdcmax"]
+        margin_low = (vm - vmin) / vmin * 100
+        margin_high = (vmax - vm) / vmax * 100
+        if margin_low < threshold || margin_high < threshold
+            margin += 1
+        end
+    end
+    return margin
+end
 
 function dc_loading(branch_dc,data)
     loading = Dict()
@@ -751,4 +985,103 @@ function conv_p_flow(convdc)
         flow[conv_id] = (pdc, pconv)
     end
     return flow
+end
+
+function add_ens_gens!(data; VOLL = 100000)
+    max_gen_id = maximum(parse.(Int, keys(data["gen"])))
+    ens_gen_id = 1
+    for (bus_id, bus) in data["bus"]
+        # Check if the load exists for the bus
+        if haskey(data["load"], bus_id)
+            ens_gen_key = max_gen_id + ens_gen_id
+            data["gen"][string(ens_gen_key)] = Dict(
+                "gen_bus" => parse(Int,bus_id),
+                "pg" => 0.0,
+                "qg" => 0.0,
+                "qmax" => 0,
+                "qmin" => 0,
+                "vg" => bus["vm"],
+                "mbase" => 100.0,
+                "gen_status" => 1,
+                "pmax" => data["load"][bus_id]["pd"],  # Use load value from data["load"]
+                "pmin" => 0.0,
+                "cost" => [VOLL , 0],  # Quadratic cost function with high marginal cost
+                "ncost" => 2,
+                "model" => 2,
+                "shutdown" => 0,
+                "startup" => 0,
+                "source_id" => Any["gen", ens_gen_key],
+                "index" => ens_gen_key
+            )
+            ens_gen_id += 1
+        end
+    end
+end
+
+function check_ens_activation(data_24h, results_24h, time_steps)
+    ENS_activity = Dict{Int, Dict{Int, Float64}}()
+    for t in time_steps
+        activated = Dict{Int, Float64}()
+        for (gen_id,gen) in results_24h[t]["solution"]["gen"]
+            gen_index = data_24h[t]["gen"]["$gen_id"]["index"]
+                if gen_index > 20 && gen["pg"] > 0
+                    activated[gen_index] = gen["pg"]
+                end
+        end
+        ENS_activity[t] = activated
+    end
+   return ENS_activity
+end
+
+function check_ens_activation_matrix(data_24h, results_24h, time_steps)
+    ENS_activity = Dict{Int, Dict{Int, Dict{Int,Float64}}}()
+    for t in time_steps
+        ENS_activity[t] = Dict{Int, Dict{Int,Float64}}()
+        for c in axes(results_24h,2)
+            activated = Dict{Int, Float64}()
+            for (gen_id,gen) in results_24h[t,c]["solution"]["gen"]
+                gen_index = data_24h[t]["gen"]["$gen_id"]["index"]
+                    if gen_index > 20 && gen["pg"] > 0
+                        activated[gen_index] = gen["pg"]
+                    end
+            end
+            ENS_activity[t][c] = activated
+        end
+    end
+   return ENS_activity
+end
+
+function check_ENS(data_24h,results_24h;tol=1e-6)
+    T,C = size(results_24h)
+
+    ENS_bool = falses(T,C)
+    ENS_total = zeros(T,C)
+
+    for t in 1:T
+        for c in 1:C
+            total_ens = 0.0
+
+            for (gen_id,gen) in results_24h[t,c]["solution"]["gen"]
+                gen_index = data_24h[t]["gen"]["$gen_id"]["index"]
+                    if gen_index > 20 && gen["pg"] > tol
+                        total_ens += gen["pg"]
+                    end
+            end
+            ENS_total[t,c] = total_ens
+            ENS_bool[t,c] = total_ens > 0
+        end
+    end
+    return ENS_bool, ENS_total
+end
+
+function check_termination_status(results)
+    C = length(results)
+    termination_status = []
+    for c in 1:C
+        status = string(results[c]["termination_status"])
+        if status != "LOCALLY_SOLVED"
+            push!(termination_status, (t,c,status))
+        end
+    end
+    return termination_status
 end
