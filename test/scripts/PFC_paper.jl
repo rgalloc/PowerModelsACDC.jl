@@ -5,6 +5,17 @@ using Ipopt
 using Plots
 import HSL_jll
 
+data = _PM.parse_file("./test/data/PFC/case67.m")
+AC_branch = ["4","5","13","22","26","34","41","42","46","81"]
+
+for b in AC_branch
+    br = data["branch"][b]
+    println("branch $b: f_bus=$(br["f_bus"]) t_bus=$(br["t_bus"])")
+end
+
+
+
+
 
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
 lsolver = "ma57"
@@ -340,6 +351,7 @@ locations = ["Bus 2", "Bus 3", "Bus 4", "Bus 8"]
 boxplot(
     [saving_vec_B2, saving_vec_B3, saving_vec_B4, saving_vec_B4],
     xticks = (1:4, locations),
+    fontfamily=plot_fontfamily,
     yticks = 0:2:20,
     ylim = (-0.5, 20),
     title = "Savings from PFCs at Different Locations",
@@ -348,11 +360,12 @@ boxplot(
     legend = false
 )
 
-savefig("/Users/rgallo/Desktop/Figures/savings_boxplot_20.4.png")
+savefig("/Users/rgallo/Desktop/Figures/savings_boxplot_20.4_new_font.png")
 
 boxplot(
     [e_voltage_B2_vec, e_voltage_B3_vec, e_voltage_B4_vec, e_voltage_B8_vec],
     xticks = (1:4, locations),
+    fontfamily=plot_fontfamily,
     ylim = (-0.01, 0.01),
     yticks = -0.01:0.002:0.01,
     title = "PFC Capacitor Voltage at Different Locations",
@@ -361,11 +374,12 @@ boxplot(
     legend = false
 )
 
-savefig("/Users/rgallo/Desktop/Figures/c_voltage_boxplot.png")
+savefig("/Users/rgallo/Desktop/Figures/c_voltage_boxplot_new_font.png")
 
 boxplot(
     [e_voltage_B2_vec_kv, e_voltage_B3_vec_kv, e_voltage_B4_vec_kv, e_voltage_B8_vec_kv],
     xticks = (1:4, locations),
+    fontfamily=plot_fontfamily,
     ylim = (-5, 5),
     yticks = -5:1:5,
     title = "PFC Capacitor Voltage at Different Locations",
@@ -374,7 +388,7 @@ boxplot(
     legend = false
 )
 
-savefig("/Users/rgallo/Desktop/Figures/c_voltage_boxplot_kv.png")
+savefig("/Users/rgallo/Desktop/Figures/c_voltage_boxplot_kv_new_font.png")
 
 ## PFC activation
 
@@ -397,34 +411,34 @@ hours = 1:24
 locations = repeat(["B2", "B3", "B4", "B8"], inner = 24)
 
 
-scatter(
-    hours,
-    plot_B2,
-    markershape = :circle,
-    label = "Bus 2",
-)
+# scatter(
+#     hours,
+#     plot_B2,
+#     markershape = :circle,
+#     label = "Bus 2",
+# )
 
-scatter!(
-    hours,
-    plot_B3,
-    markershape = :square,
-    label = "Bus 3",
-)
+# scatter!(
+#     hours,
+#     plot_B3,
+#     markershape = :square,
+#     label = "Bus 3",
+# )
 
-# Create a new figure for the binary values
-scatter!(
-    hours,
-    plot_B4,
-    markershape = :diamond,
-    label = "Bus 4",
-)
+# # Create a new figure for the binary values
+# scatter!(
+#     hours,
+#     plot_B4,
+#     markershape = :diamond,
+#     label = "Bus 4",
+# )
 
-scatter!(
-    hours,
-    plot_B8,
-    markershape = :star5,
-    label = "Bus 8",
-)
+# scatter!(
+#     hours,
+#     plot_B8,
+#     markershape = :star5,
+#     label = "Bus 8",
+# )
 
 using Statistics
 
@@ -463,6 +477,7 @@ cases = ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", 
 plot(
     hours,
     e_voltage_B2_plot[:,1],
+    fontfamily=plot_fontfamily,
     markershape = :circle,
     legend = :outerright,
     label = "Base",
@@ -487,7 +502,7 @@ plot!(
     label = "AC N-1"
 )
 
-savefig("/Users/rgallo/Desktop/Figures/c_voltage_plot.png")
+savefig("/Users/rgallo/Desktop/Figures/c_voltage_plot_new_font.png")
 
 plot(
     hours,
@@ -532,6 +547,155 @@ plot!(
 )
 
 plot!(hours,load_profile, label = "Load Profile", linestyle = :dash, color = :black)
+
+### Plot activation
+## Generator on status, heatmap style
+plot_markersize = 3
+plot_fontfamily = "Computer Modern"
+plot_titlefontsize = 20
+plot_guidefontsize = 16
+plot_tickfontsize = 12
+plot_legendfontsize = 12
+plot_size = (720,480)
+plot_gen_on = scatter()
+
+activation_B2_mat = [activation_B2[t, c] for t in time_steps_67bus, c in 1:n_cont]
+ 
+# gen_on_mat = [results_robust["gen_on"][g][t] for g in genconv_ids, t=1:n_time_steps]
+# gen_on_mat = [results_classical["gen_on"][g][t] for g in genconv_ids, t=1:n_time_steps]
+plot_gen_on = heatmap(activation_B2_mat;
+                        cbar = false,
+                        framestyle = :box,
+                        # color=palette(cs_grays, 2),
+                        color = palette(:greys, 2),
+                        clim=(0,1))
+m, n = size(activation_B2_mat)
+plot!(plot_gen_on,
+        legend = false,
+        fontfamily=plot_fontfamily,
+        # background_color=:transparent,
+        foreground_color=:black,
+        titlefontsize = plot_titlefontsize,
+        guidefontsize = plot_guidefontsize,
+        tickfontsize = plot_tickfontsize,
+        legendfontsize = plot_legendfontsize,
+        size = plot_size,xrotation=45,
+        bottom_margin = (10,:mm),
+        left_margin = (4,:mm),
+        right_margin = (2,:mm)
+        )
+vline!(1.5:(n+1), c=:black,linewidth=0.2)
+hline!(0.5:4:(m+1), c=:black,linewidth=0.2)
+title!("PFC activation status")
+# xticks!([6:6:n_time_steps;], string.([6:6:n_time_steps;]))
+start_time = DateTime("2022-02-16T18:00:00");
+end_time = DateTime("2022-02-17T17:45:00");
+time_step_interval = 19
+t_date = start_time:Minute(time_step_interval*15):end_time
+time_ticks = Dates.format.(t_date,"dd/mm HH:MM")
+xticks!([1:time_step_interval:n_time_steps;],time_ticks)
+# yticks!([1:1:length(genconv_ids);], genconv_ids)
+yticks!(1:n_cont, ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"])
+# yticks!([1:1:length(gen_ids);], gen_ids)
+xlims!(0.5,n_time_steps+0.5)
+ylims!(0.5,length(n_cont)+0.5)
+xlabel!("Time")
+ylabel!("Scenario")
+# annotate!(102, 4, text("Colors", 10, "Computer Modern"))
+# annotate!(1.5, range(0,1,4+1)[1:4] .+ 0.5/4, text("On", 7, "Computer Modern"))
+##
+Plots.svg(joinpath(results_folder,"svg","plot_gen_on_$suffix_results_name.svg"))
+savefig(joinpath(results_folder,"png","plot_gen_on_$suffix_results_name.png"))
+ 
+## Change for activation plot
+plot_markersize = 3
+plot_fontfamily = "Computer Modern"
+plot_titlefontsize = 20
+plot_guidefontsize = 16
+plot_tickfontsize = 12
+plot_legendfontsize = 12
+plot_size = (720,520)
+plot_device_on = scatter()
+
+hours = 1:24
+scenarios = 1:n_cont
+scenario_label = ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"]
+
+activation_plot_mat = activation_B2'
+
+on_color = RGB(0.2, 0.6, 0.2)
+color = [:white, on_color]
+
+plot_device_on = heatmap(
+    activation_plot_mat;
+    cbar = false,
+    framestyle = :box,
+    color = color,
+    clim = (0, 1)
+)
+
+
+plot!(
+    plot_device_on,
+    legend = false,
+    fontfamily = plot_fontfamily,
+    foreground_color = :black,
+    titlefontsize = plot_titlefontsize,
+    guidefontsize = plot_guidefontsize,
+    tickfontsize = plot_tickfontsize,
+    size = plot_size,
+    bottom_margin = (8, :mm),
+    left_margin = (8, :mm)
+)
+
+
+vline!(0.5:1:24.5, c = :black, linewidth = 0.2)
+hline!(0.5:1:21.5, c = :black, linewidth = 0.2)
+
+
+title!("PFC activation status at Bus 2")
+xlabel!("Hour")
+ylabel!("Scenario")
+
+
+xticks!(1:24, string.(1:24))
+yticks!(1:n_cont, scenario_label)
+
+xlims!(0.5, 24.5)
+ylims!(0.5, length(scenario_label) + 0.5)
+
+savefig("/Users/rgallo/Desktop/Figures/B2_activation_plot.png")
+savefig("/Users/rgallo/Desktop/Figures/B2_activation_plot.svg")
+
+hline!([11.5], linewidth = 2.0, color = :black)
+hline!([1.5], linewidth = 2.0, color = :black)
+
+scatter!(
+    plot_device_on,
+    [NaN], [NaN],
+    marker = (:square, 8),
+    color = :white,
+    label = "OFF"
+)
+
+scatter!(
+    plot_device_on,
+    [NaN], [NaN],
+    marker = (:square, 8),
+    color = :green,
+    label = "ON"
+)
+
+plot!(
+    plot_device_on,
+    legend = :outerright,
+    legendtitle = "Device",
+    legendfontsize = 10
+)
+
+# annotate!(25, 5, text("OFF", 10))
+# annotate!(25, 15, text("ON", 10))
+
 
 #Extract dc branch flows for all branches and the no pfc and pfc at B2 cases
 
@@ -593,6 +757,7 @@ branches = ["DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10
 boxplot(
     [delta_dc1, delta_dc2, delta_dc3, delta_dc4, delta_dc5, delta_dc6, delta_dc7, delta_dc8, delta_dc9, delta_dc10],
     xticks = (1:10, branches),
+    fontfamily=plot_fontfamily,
     yticks = -6:2:8,
     ylim = (-6, 8),
     title = "Change in DC Branch Flows Due to PFC at Bus 2",
@@ -600,11 +765,12 @@ boxplot(
     ylabel = "Change in Active Power Flow (p.u.)",
     legend = false
 )
-savefig("/Users/rgallo/Desktop/Figures/dc_flow_change_boxplot.png")
+savefig("/Users/rgallo/Desktop/Figures/dc_flow_change_boxplot_new_font.png")
 
 violin(
     [delta_dc1, delta_dc2, delta_dc3, delta_dc4, delta_dc5, delta_dc6, delta_dc7, delta_dc8, delta_dc9, delta_dc10],
     xticks = (1:10, branches),
+    fontfamily=plot_fontfamily,
     title = "Change in DC Branch Flows Due to PFC at Bus 2",
     xlabel = "DC Branches",
     yticks = -6:2:8,
@@ -613,7 +779,7 @@ violin(
     legend = false
 )
 
-savefig("/Users/rgallo/Desktop/Figures/dc_flow_change_violin.png")
+savefig("/Users/rgallo/Desktop/Figures/dc_flow_change_violin_new_font.png")
 
 # Heatmap of DC 5 flow change across all contingencies
 
@@ -624,6 +790,7 @@ delta_dc5_plot = abs.(dc5_with_pfc) - abs.(dc5_no_pfc)
 heatmap(
     delta_dc5_plot',
     xticks = (1:24, string.(time_steps_67bus)),
+    fontfamily=plot_fontfamily,
     yticks = (1:n_cont, ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"]),
     title = "Change in DC Branch 5 Flow Due to PFC at Bus 2",
     xlabel = "Time Steps",
@@ -640,6 +807,7 @@ delta_dc9_plot = abs.(dc9_with_pfc) - abs.(dc9_no_pfc)
 heatmap(
     delta_dc9_plot',
     xticks = (1:24, string.(time_steps_67bus)),
+    fontfamily=plot_fontfamily,
     yticks = (1:n_cont, ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"]),
     clim = (-7, 7),
     title = "Change in DC Branch 9 Flow Due to PFC at Bus 2",
@@ -707,6 +875,7 @@ branches = ["DC1*", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9*", "DC
 boxplot(
     [delta_dc1_loading, delta_dc2_loading, delta_dc3_loading, delta_dc4_loading, delta_dc5_loading, delta_dc6_loading, delta_dc7_loading, delta_dc8_loading, delta_dc9_loading, delta_dc10_loading],
     xticks = (1:10, branches),
+    fontfamily=plot_fontfamily,
     yticks = -50:10:50,
     ylim = (-50, 50),
     title = "Change in DC Branch Loading Due to PFC at Bus 2",
@@ -714,7 +883,7 @@ boxplot(
     ylabel = "Change in Loading (%)",
     legend = false
 )
-savefig("/Users/rgallo/Desktop/Figures/dc_loading_change_boxplot.png")
+savefig("/Users/rgallo/Desktop/Figures/dc_loading_change_boxplot_new_font.png")
 
 # Heatmap of DC 5 and 9 loading change across all contingencies
 dc5_loading_no_pfc_plot = [dc_loading(results_24h_no_pfc_67bus, t, c, "5", 15.75) for t in time_steps_67bus, c in 1:n_cont]
@@ -727,31 +896,93 @@ delta_dc9_loading_plot = (dc9_loading_with_pfc_plot .- dc9_loading_no_pfc_plot) 
 
 cases = ["Base", "DC1", "DC2", "DC3", "DC4", "DC5", "DC6", "DC7", "DC8", "DC9", "DC10", "AC4", "AC5", "AC13", "AC22", "AC26", "AC34", "AC41", "AC42", "AC46", "AC81"]
 
-heatmap(
+heatmap_dc5 = heatmap(
     delta_dc5_loading_plot',
-    xticks = (1:24, string.(time_steps_67bus)),
-    yticks = (1:n_cont, cases),
-    title = "Change in DC Branch 5 Loading Due to PFC at Bus 2",
-    xlabel = "Time Steps",
-    ylabel = "Contingencies",
+    # xticks = (1:24, string.(time_steps_67bus)),
+    # yticks = (1:n_cont, cases),
+    fontfamily=plot_fontfamily,
+    # title = "Change in DC Branch 5 Loading Due to PFC at Bus 2",
+    # xlabel = "Time Steps",
+    # ylabel = "Contingencies",
     clim = (-50, 50),
+    framestyle = :box,
     color = :balance,
     colorbar_title = "Change in Loading (%)"
 )
-savefig("/Users/rgallo/Desktop/Figures/dc5_loading_change_heatmap.png")
 
-heatmap(
+plot!(
+    heatmap_dc5,
+    legend = false,
+    fontfamily = plot_fontfamily,
+    foreground_color = :black,
+    titlefontsize = plot_titlefontsize,
+    guidefontsize = plot_guidefontsize,
+    tickfontsize = 10,
+    colorbar_titlefontsize = 14,
+    size = plot_size,
+    bottom_margin = (8, :mm),
+    right_margin = (8, :mm),
+    left_margin = (4, :mm)
+)
+
+vline!(0.5:1:24.5, c = :black, linewidth = 0.2)
+hline!(0.5:1:21.5, c = :black, linewidth = 0.2)
+
+title!("DC Branch 5 Loading Change at Bus 2")
+xlabel!("Hour")
+ylabel!("Scenario")
+
+xticks!(1:24, string.(1:24))
+yticks!(1:n_cont, scenario_label)
+
+xlims!(0.5, 24.5)
+ylims!(0.5, length(scenario_label) + 0.5)
+
+savefig("/Users/rgallo/Desktop/Figures/dc5_loading_change_heatmap_2.png")
+
+heatmap_dc9 =  heatmap(
     delta_dc9_loading_plot',
-    xticks = (1:24, string.(time_steps_67bus)),
-    yticks = (1:n_cont, cases),
-    title = "Change in DC Branch 9 Loading Due to PFC at Bus 2",
-    xlabel = "Time Steps",
-    ylabel = "Contingencies",
+    # xticks = (1:24, string.(time_steps_67bus)),
+    # yticks = (1:n_cont, cases),
+    fontfamily=plot_fontfamily,
+    # title = "Change in DC Branch 9 Loading Due to PFC at Bus 2",
+    # xlabel = "Time Steps",
+    # ylabel = "Contingencies",
     clim = (-50, 50),
     color = :balance,
+    framestyle = :box,
     colorbar_title = "Change in Loading (%)"
 )
-savefig("/Users/rgallo/Desktop/Figures/dc9_loading_change_heatmap.png")
+
+plot!(
+    heatmap_dc9,
+    legend = false,
+    fontfamily = plot_fontfamily,
+    foreground_color = :black,
+    titlefontsize = plot_titlefontsize,
+    guidefontsize = plot_guidefontsize,
+    tickfontsize = 10,
+    colorbar_titlefontsize = 14,
+    size = plot_size,
+    bottom_margin = (8, :mm),
+    right_margin = (8, :mm),
+    left_margin = (4, :mm)
+)
+
+vline!(0.5:1:24.5, c = :black, linewidth = 0.2)
+hline!(0.5:1:21.5, c = :black, linewidth = 0.2)
+
+title!("DC Branch 9 Loading Change at Bus 2")
+xlabel!("Hour")
+ylabel!("Scenario")
+
+xticks!(1:24, string.(1:24))
+yticks!(1:n_cont, scenario_label)
+
+xlims!(0.5, 24.5)
+ylims!(0.5, length(scenario_label) + 0.5)
+
+savefig("/Users/rgallo/Desktop/Figures/dc9_loading_change_heatmap_2.png")
 
 # data_24h_no_pfc_67bus = Vector{Dict{String,Any}}(undef, length(time_steps_67bus))
 # results_24h_no_pfc_67bus = Vector{Dict{String,Any}}(undef, length(time_steps_67bus))
