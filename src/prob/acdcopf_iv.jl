@@ -92,10 +92,10 @@ function build_acdcopf_iv(pm::_PM.AbstractIVRModel)
     #     _PM.objective_min_fuel_and_flow_cost(pm)
     # end
 
-    # _PM.objective_min_fuel_and_flow_cost(pm)
+    _PM.objective_min_fuel_and_flow_cost(pm)
     # _PM.objective_min_fuel_cost(pm)
 
-    objective_min_operational_cost(pm)
+    # objective_min_operational_cost(pm)
 
     variable_active_dcbranch_flow(pm)
     variable_dcbranch_current(pm)
