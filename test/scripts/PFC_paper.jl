@@ -5,41 +5,18 @@ using Ipopt
 using Plots
 import HSL_jll
 
-data = _PM.parse_file("./test/data/PFC/case67.m")
-AC_branch = ["4","5","13","22","26","34","41","42","46","81"]
+# data = _PM.parse_file("./test/data/PFC/case67.m")
+# AC_branch = ["4","5","13","22","26","34","41","42","46","81"]
 
-for b in AC_branch
-    br = data["branch"][b]
-    println("branch $b: f_bus=$(br["f_bus"]) t_bus=$(br["t_bus"])")
-end
-
-
-
-
+# for b in AC_branch
+#     br = data["branch"][b]
+#     println("branch $b: f_bus=$(br["f_bus"]) t_bus=$(br["t_bus"])")
+# end
 
 s = Dict("output" => Dict("branch_flows" => true), "conv_losses_mp" => true)
 lsolver = "ma57"
 warm = "no"
 level = 0 #Print level for ipopt
-
-# HSL_jll.libhsl_path
-
-# model = Model(Ipopt.Optimizer)
-# @variable(model, x)
-# @objective(model, Min, (x - 2)^2)
-
-# # Load the HSL solvers
-# set_attribute(model, "hsllib", HSL_jll.libhsl_path)
-# # Use the linear solver MA57
-# set_attribute(model, "linear_solver", "ma27")
-
-# # Solve the model
-# optimize!(model)
-
-# # Output the results
-# println("Optimal value of x: ", value(x))
-# println("Optimal value of y: ", value(y))
-# println("Objective value: ", objective_value(model))
 
 ## Simulations to run 67 bus system for 24 and 8760 hour horizon with and without PFCs
 
