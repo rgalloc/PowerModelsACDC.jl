@@ -21,4 +21,5 @@ Optimization variables representing the PFC behaviour.
 | name | symb. | unit | formulation | definition |
 |------|-------|------|-------------|------------|
 | duty cycle | $d$ | -   | IVR  | Duty cycle of the PFC |
+| internal capacitor voltage | $e$ | kV | Internal capacitor voltage of the PFC |
 
