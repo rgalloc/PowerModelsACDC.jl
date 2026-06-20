@@ -3,23 +3,40 @@ import PowerModels
 import Ipopt
 
 #solver and settings
-nlsolver = optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 4)
+nlsolver = optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_level" => 0)
 s = Dict("conv_losses_mp" => true)
 
 # data parsing
 data = PowerModels.parse_file("test/data/prosecco.m")
 process_additional_data!(data)
 
-# for (convdc_id, convdc) in data["convdc"]
-#     println("Converter $convdc_id: busdc=$(convdc["busdc_i"]), busac=$(convdc["busac_i"]), type_dc=$(convdc["type_dc"]), type_ac=$(convdc["type_ac"])")
-#     println("  Imax=$(convdc["Imax"]), Vdcset=$(convdc["Vdcset"]), Pacmax=$(convdc["Pacmax"]), Qacmax=$(convdc["Qacmax"])")
-# end
+LF = [0.75, 1, 1.25]
+CF = [0.25, 0.5, 0.75, 1]
+results_dict = Dict{Tuple{Float64, Float64}, Any}()
+    
+for lf in LF
+    for cf in CF
+        data_run = scale_load_wind(data, lf, cf)
+        result_run = solve_acdcopf(data_run, PowerModels.ACPPowerModel, nlsolver; setting=s)
 
-result = solve_acdcopf(data, PowerModels.ACPPowerModel, nlsolver; setting=s)
+        results_dict[(lf, cf)] = result_run
+    end
+end
+
+# print results for each case
+for (lf, cf) in keys(results_dict)
+    println("Results for Load Factor = $lf, Capacity Factor = $cf")
+    for (gen_id, gen) in results_dict[(lf, cf)]["solution"]["gen"]
+        println("Generator $gen_id: Pg = $(gen["pg"]), Qg = $(gen["qg"])")
+    end
+end
+
+
+
 
 # print results
 for (gen_id, gen) in result["solution"]["gen"]
-    println("Generator $gen_id: Pg=$(gen["pg"]), Qg=$(gen["qg"])")
+    println("Generator $gen_id: Pg = $(gen["pg"]), Qg = $(gen["qg"])")
 end
 
 for (convdc_id, convdc) in result["solution"]["convdc"]
@@ -38,17 +55,16 @@ for (branchdc_id, branchdc) in result["solution"]["branchdc"]
     println("DC Branch $branchdc_id: pt=$(branchdc["pt"]), pf=$(branchdc["pf"])")
 end
 
-# Reduciton of OWF capacity factor
 
-data_cf = deepcopy(data)
-CF = 0.5
-
-data_cf["gen"]["4"]["pmax"] = CF * data["gen"]["4"]["pmax"]
-data_cf["gen"]["5"]["pmax"] = CF * data["gen"]["5"]["pmax"]
-
-result_cf = solve_acdcopf(data_cf, PowerModels.ACPPowerModel, nlsolver; setting=s)
-
-# print results
-for (gen_id, gen) in result_cf["solution"]["gen"]
-    println("Generator $gen_id: Pg=$(gen["pg"]), Qg=$(gen["qg"])")
+function scale_load_wind(data, LF, CF)
+    data_run = deepcopy(data)
+    for (load_id, load) in data_run["load"]
+        data_run["load"][load_id]["pd"] = LF * data["load"][load_id]["pd"]
+    end
+    for (gen_id, gen) in data_run["gen"]
+        if gen_id in ["4", "5"]
+            data_run["gen"][gen_id]["pmax"] = CF * data["gen"][gen_id]["pmax"]
+        end
+    end
+    return data_run
 end
