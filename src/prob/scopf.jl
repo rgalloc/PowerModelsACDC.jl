@@ -110,7 +110,7 @@ function first_stage_model!(pm, n)
         _PM.constraint_thermal_limit_from(pm, i; nw = n)
         _PM.constraint_thermal_limit_to(pm, i; nw = n)
     end
-    for i in _PM.ids(pm, n, :busdc)
+    for i in _PM.ids(pm, n, :busdc) ## repeated constraint
         constraint_power_balance_dc(pm, i; nw = n)
     end
     for i in _PM.ids(pm, n, :branchdc)
@@ -202,9 +202,9 @@ function second_stage_model!(pm, n)
 
 
     for i in _PM.ids(pm, n, :convdc)
-        if contingencies[cont_id]["dcconv_id1"] == i || contingencies[cont_id]["dcconv_id2"] == i || contingencies[cont_id]["dcconv_id3"] == i
-            constraint_converter_contingencies(pm, i; nw = n)
-        else
+        # if contingencies[cont_id]["dcconv_id1"] == i || contingencies[cont_id]["dcconv_id2"] == i || contingencies[cont_id]["dcconv_id3"] == i
+        #     #constraint_converter_contingencies(pm, i; nw = n)
+        # else
             constraint_converter_losses(pm, i; nw = n)
             constraint_converter_current(pm, i; nw = n)
             constraint_conv_transformer(pm, i; nw = n)
@@ -214,6 +214,6 @@ function second_stage_model!(pm, n)
                 constraint_conv_firing_angle(pm, i; nw = n)
             end
             constraint_dc_droop_control(pm, i, nw = n; scopf = true)
-        end
+        #end
     end
 end
