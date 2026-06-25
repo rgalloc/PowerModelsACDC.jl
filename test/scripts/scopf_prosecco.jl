@@ -34,7 +34,7 @@ result_single = solve_acdcopf(data_single, PowerModels.ACPPowerModel, nlsolver; 
 
 data = PowerModels.parse_file("test/data/prosecco_scopf.m")
 
-kmax = 1e6
+kmax = 100
 dc_converter_passivity = true
 
 
@@ -75,19 +75,24 @@ number_of_contingencies = length(data["contingencies"])
 data_all = create_scopf_data(data, number_of_hours, g_series, l_series)
 
 # N-1 
-for idx = 1:6
-    nw = idx + 1
-    data_all["nw"]["$nw"]["convdc"]["$idx"]["status"] = 0
-    # for (b, busdc) in  data_all["nw"]["$nw"]["busdc"]
-    #     busdc["Vdcmax"] = 2
-    #     busdc["Vdcmin"] = 0.2
-    # end
-end
+# for idx = 1:10
+#     nw = idx + 1
+#     data_all["nw"]["$nw"]["convdc"]["$idx"]["status"] = 0
+#     # for (b, busdc) in  data_all["nw"]["$nw"]["busdc"]
+#     #     busdc["Vdcmax"] = 2
+#     #     busdc["Vdcmin"] = 0.2
+#     # end
+# end
 
 # for idx = 4:9
 #     nw = idx + 8
 #     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
 # end
+
+for idx = 4:9
+    nw = idx - 2
+    data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
+end
 
 # for nw in 1:number_of_hours * number_of_contingencies
 #     for (b, busdc) in  data_all["nw"]["$nw"]["busdc"]
@@ -190,7 +195,7 @@ end
 droop_p_diff_pu = droop_p_diff ./ data_all["nw"]["1"]["baseMVA"]
 k_calc = droop_p_diff_pu ./ droop_v_diff
 
-
+max_k_droop = maximum(k_droop./kmax)
 
 
 
