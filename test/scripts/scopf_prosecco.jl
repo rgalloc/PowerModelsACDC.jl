@@ -8,10 +8,11 @@ nlsolver = optimizer_with_attributes(Ipopt.Optimizer, "tol" => 1e-6, "print_leve
 s = Dict("conv_losses_mp" => true)
 
  # data parsing
-data_single = PowerModels.parse_file("test/data/prosecco_base.m")
-process_additional_data!(data_single)
+# data_single = PowerModels.parse_file("test/data/prosecco_base.m")
+# data_single = PowerModels.parse_file("test/data/prosecco_scopf.m")
+# process_additional_data!(data_single)
 
-result_single = solve_acdcopf(data_single, PowerModels.ACPPowerModel, nlsolver; setting=s)
+# result_single = solve_acdcopf(data_single, PowerModels.ACPPowerModel, nlsolver; setting=s)
 
  # LF = [0.75, 1, 1.25]
  # CF = [0.25, 0.5, 0.75, 1]
@@ -32,7 +33,10 @@ result_single = solve_acdcopf(data_single, PowerModels.ACPPowerModel, nlsolver; 
 
 # SCOPF
 
-data = PowerModels.parse_file("test/data/prosecco_scopf.m")
+# file = pkgdir(PowerModelsACDC, "test", "data", "case5acdc_scopf.m")
+file = pkgdir(PowerModelsACDC, "test", "data", "prosecco_scopf.m")
+
+data = PowerModels.parse_file(file)
 
 kmax = 100
 dc_converter_passivity = true
@@ -43,7 +47,7 @@ for (c, conv) in data["convdc"]
 end
 
 for (g, gen) in data["gen"]
-    gen["gen_slack"] = 0.02
+    gen["gen_slack"] = 0.5
 end
 
 # Process demand reduction and curtailment data
@@ -72,7 +76,19 @@ number_of_hours = 1
 # get the number of contingencies from the data dictionary
 number_of_contingencies = length(data["contingencies"])
 
+# Resistance parametrisation
+alpha = 10
+for (b, branch) in data["branchdc"]
+    branch["r"] = alpha * branch["r"]
+end
+
 data_all = create_scopf_data(data, number_of_hours, g_series, l_series)
+
+# Tighten the bounds for dc voltage in the first stage networks
+# for (b,busdc) in  data_all["nw"]["1"]["busdc"]
+#     busdc["Vdcmax"] = 1.05
+#     busdc["Vdcmin"] = 0.95
+# end
 
 # N-1 
 # for idx = 1:10
@@ -89,8 +105,8 @@ data_all = create_scopf_data(data, number_of_hours, g_series, l_series)
 #     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
 # end
 
-for idx = 4:9
-    nw = idx - 2
+for idx = 1:6
+    nw = idx + 1
     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
 end
 
@@ -99,6 +115,12 @@ end
 #         busdc["Vdcmax"] = 2
 #         busdc["Vdcmin"] = 0.2
 #     end
+# end
+
+# For 5 bus test case
+# for idx = 1:3
+#     nw = idx + 1
+#     data_all["nw"]["$nw"]["convdc"]["$idx"]["status"] = 0
 # end
 
 
@@ -165,7 +187,7 @@ for (b,branchdc) in data_all["nw"]["1"]["branchdc"]
     end
 end
 
-droop_v_diff = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["convdc"]))
+droop_u_diff = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["convdc"]))
 droop_p_diff = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["convdc"]))
 
 
@@ -187,18 +209,108 @@ for (n, network) in result["solution"]["nw"]
         p_ref = result["solution"]["nw"][ref_key]["convdc"][c]["pdc"]
         p_con = result["solution"]["nw"][n]["convdc"][c]["pdc"]
 
-        droop_v_diff[n_idx, c_idx] = u_con - u_ref
+        droop_u_diff[n_idx, c_idx] = u_con - u_ref
         droop_p_diff[n_idx, c_idx] = (p_con - p_ref) * data_all["nw"]["1"]["baseMVA"]
     end
 end
 
-droop_p_diff_pu = droop_p_diff ./ data_all["nw"]["1"]["baseMVA"]
-k_calc = droop_p_diff_pu ./ droop_v_diff
+# droop_p_diff_pu = droop_p_diff ./ data_all["nw"]["1"]["baseMVA"]
+k_calc = droop_p_diff ./ droop_u_diff
 
 max_k_droop = maximum(k_droop./kmax)
 
+# Required delta P for converter outages
+d_p_required = zeros(number_of_hours, length(result["solution"]["nw"]["1"]["convdc"]))
+p_dc_ref = zeros(number_of_hours, length(result["solution"]["nw"]["1"]["convdc"]))
+p_dc_free_cont = zeros(number_of_hours, length(result["solution"]["nw"]["1"]["convdc"]))
+
+p_dc_ref = pconv[1:number_of_contingencies:end, :]
+
+for i in 1:length(result["solution"]["nw"]["1"]["convdc"])
+   if i >= 7
+        p_dc_free_cont[i] = minimum(pconv[:, i])
+   else
+        p_dc_free_cont[i] = maximum(pconv[:, i])
+   end
+end
+
+d_p_required = p_dc_free_cont - p_dc_ref
+
+max_d_u = 1.1 - 1
+k = 50
+
+max_d_p = (k*max_d_u)*baseMVA
+
+# Matrix of required voltages
+p_dc_ref_mat = repeat(p_dc_ref,10)
+p_dc_free_cont_mat = pconv[2:end,:]
+u_dc_ref = [busdc_voltages[1,1],busdc_voltages[1,1], busdc_voltages[1,2], busdc_voltages[1,2], busdc_voltages[1,3], busdc_voltages[1,3], busdc_voltages[1,4], busdc_voltages[1,4], busdc_voltages[1,5], busdc_voltages[1,5]]'
+U_dc_ref = repeat(u_dc_ref,10) #converter ref voltage
+
+delta_P_required = (p_dc_free_cont_mat - p_dc_ref_mat) ./ baseMVA
+delta_U_required = delta_P_required ./ (k*baseMVA)
+
+Udc_required = U_dc_ref .+ delta_U_required
+U_dc_required_calc = zeros(10,10)
+
+U_free_mat = [busdc_voltages[2:end,1] busdc_voltages[2:end,1] busdc_voltages[2:end,2] busdc_voltages[2:end,2] busdc_voltages[2:end,3] busdc_voltages[2:end,3] busdc_voltages[2:end,4] busdc_voltages[2:end,4] busdc_voltages[2:end,5] busdc_voltages[2:end,5]]
+U_error = zeros(10,10)
+
+delta_U_free = U_free_mat - U_dc_ref
+k_required = zeros(10,10)
+
+for c in 1:10
+    for n in 1:10
+        if c == n
+            U_dc_required_calc[n,c] = NaN
+            U_error[n,c] = NaN
+            k_required[n,c] = NaN
+        else
+            U_dc_required_calc[n,c] = u_dc_ref[c] + (p_dc_free_cont_mat[n,c] - p_dc_ref_mat[n,c])/(k*baseMVA)
+            U_error[n,c] = U_dc_required_calc[n,c] - U_free_mat[n,c]
+            k_required[n,c] = delta_P_required[n,c] / delta_U_free[n,c] 
+        end
+    end
+end
+
+# Required K for each converter to achieve the required voltage change
 
 
+# Testing feasibility of the required Udc voltages at the converters
+U_dc_station = [U_dc_required_calc[:,1] U_dc_required_calc[:,3] U_dc_required_calc[:,5] U_dc_required_calc[:,7] U_dc_required_calc[:,9]]
+U_dc_station[1,1] = U_dc_station[2,1]
+U_dc_station[3,2] = U_dc_station[4,2]
+U_dc_station[5,3] = U_dc_station[6,3]
+U_dc_station[7,4] = U_dc_station[8,4]
+U_dc_station[9,5] = U_dc_station[10,5]
+
+# Test 1: fixing Udc at converters and checking if the DC network can feasibly operate with the required voltages
+# for n in 2:11
+#     n_idx = n - 1
+#     data_test_1["nw"]["$n_idx"] = deepcopy(data_all["nw"]["$n"])
+# end
+data_test_1 = deepcopy(data_all["nw"]["2"])
+data_test_1["per_unit"] = true
+for (b,busdc) in data_test_1["busdc"]
+    if b in ["1", "2", "3", "4", "5"]
+        busdc["Vdcmax"] = U_dc_station[1, parse(Int, b)]
+        busdc["Vdcmin"] = U_dc_station[1, parse(Int, b)]
+    end
+end
+data_test_1["convdc"]["2"]["type_dc"] = 3
+
+# result_test_1 = solve_acdcopf(data_test_1, PowerModels.ACPPowerModel, nlsolver; setting=s)
+
+# Print data to check that required voltages are assuigned correctly
+# for (b,busdc) in data_test_1["busdc"]
+#     println("Busdc ID:  $b Vdcmin: $(busdc["Vdcmin"]), Vdcmax: $(busdc["Vdcmax"])")
+# end
+
+# for (conv_id,conv) in data_test_1["convdc"]
+#     println("-----------------")
+#     println("Conv ID: $conv_id, Status: $(conv["status"]), DC bus ID: $(conv["busdc_i"]), DC bus min: $(data_test_1["busdc"][string(conv["busdc_i"])]["Vdcmin"]), DC bus max: $(data_test_1["busdc"][string(conv["busdc_i"])]["Vdcmax"])")
+#     println("-----------------")
+# end
 
 
 # total_load = sum(pd, dims=2)
@@ -232,18 +344,18 @@ max_k_droop = maximum(k_droop./kmax)
 
 
 
-function scale_load_wind(data, LF, CF)
-    data_run = deepcopy(data)
-    for (load_id, load) in data_run["load"]
-        data_run["load"][load_id]["pd"] = LF * data["load"][load_id]["pd"]
-    end
-    for (gen_id, gen) in data_run["gen"]
-        # if gen_id in ["4", "5"]
-            data_run["gen"][gen_id]["pmax"] = CF * data["gen"][gen_id]["pmax"]
-        # end
-    end
-    return data_run
-end
+# function scale_load_wind(data, LF, CF)
+#     data_run = deepcopy(data)
+#     for (load_id, load) in data_run["load"]
+#         data_run["load"][load_id]["pd"] = LF * data["load"][load_id]["pd"]
+#     end
+#     for (gen_id, gen) in data_run["gen"]
+#         # if gen_id in ["4", "5"]
+#             data_run["gen"][gen_id]["pmax"] = CF * data["gen"][gen_id]["pmax"]
+#         # end
+#     end
+#     return data_run
+# end
 
 # Postprocessing of results
 

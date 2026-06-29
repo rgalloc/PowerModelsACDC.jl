@@ -32,7 +32,6 @@ mpc.branch = [
 ];
 
 
-
 % number of poles (1=monopolar, 2=bipolar)
 mpc.dcpol = 2;
 
