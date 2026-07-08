@@ -203,7 +203,7 @@ function second_stage_model!(pm, n)
 
     for i in _PM.ids(pm, n, :convdc)
         # if contingencies[cont_id]["dcconv_id1"] == i || contingencies[cont_id]["dcconv_id2"] == i || contingencies[cont_id]["dcconv_id3"] == i
-        #     #constraint_converter_contingencies(pm, i; nw = n)
+        #     constraint_converter_contingencies(pm, i; nw = n)
         # else
             constraint_converter_losses(pm, i; nw = n)
             constraint_converter_current(pm, i; nw = n)
@@ -213,7 +213,7 @@ function second_stage_model!(pm, n)
             if _PM.ref(pm, n, :convdc, i, "islcc") == 1
                 constraint_conv_firing_angle(pm, i; nw = n)
             end
-            constraint_dc_droop_control(pm, i, nw = n; scopf = true)
-        #end
+            # constraint_dc_droop_control(pm, i, nw = n; scopf = true)
+        # end
     end
 end

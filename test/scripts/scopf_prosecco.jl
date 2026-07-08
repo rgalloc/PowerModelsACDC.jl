@@ -14,6 +14,14 @@ s = Dict("conv_losses_mp" => true)
 
 # result_single = solve_acdcopf(data_single, PowerModels.ACPPowerModel, nlsolver; setting=s)
 
+# for (c,conv) in result_single["solution"]["convdc"]
+#     println("Conv ID:  $c  Pdc: $(conv["pdc"])")
+# end
+
+# for (bdc,branchdc) in result_single["solution"]["branchdc"]
+#     println("Branch ID:  $bdc  Pdc: $(branchdc["pf"])")
+# end
+
  # LF = [0.75, 1, 1.25]
  # CF = [0.25, 0.5, 0.75, 1]
 # LF = [1.0 0.7 0.75 0.78 0.85]
@@ -35,6 +43,7 @@ s = Dict("conv_losses_mp" => true)
 
 # file = pkgdir(PowerModelsACDC, "test", "data", "case5acdc_scopf.m")
 file = pkgdir(PowerModelsACDC, "test", "data", "prosecco_scopf.m")
+# file = pkgdir(PowerModelsACDC, "test", "data", "prosecco_scopf_2.m")
 
 data = PowerModels.parse_file(file)
 
@@ -47,7 +56,11 @@ for (c, conv) in data["convdc"]
 end
 
 for (g, gen) in data["gen"]
-    gen["gen_slack"] = 0.5
+    if g in ["4", "5"]
+        gen["gen_slack"] = 0.02
+    else
+        gen["gen_slack"] = 1
+    end
 end
 
 # Process demand reduction and curtailment data
@@ -64,7 +77,7 @@ end
 
 
 # OPF settings
-s = Dict("conv_losses_mp" => true, "optimize_converter_droop" => true, "objective_components" => ["gen"], "dc_converter_passivity" => dc_converter_passivity)
+s = Dict("conv_losses_mp" => true, "optimize_converter_droop" => true, "objective_components" => ["gen","demand"], "dc_converter_passivity" => dc_converter_passivity)
 
 # Random generation and demand time series, later replace with something more representative
 # g_series = [1.0 0.7 0.75 0.78 0.85]
@@ -77,12 +90,32 @@ number_of_hours = 1
 number_of_contingencies = length(data["contingencies"])
 
 # Resistance parametrisation
-alpha = 10
+alpha = 1
 for (b, branch) in data["branchdc"]
     branch["r"] = alpha * branch["r"]
 end
 
+CF = 0.5
+for (g_id, gen) in data["gen"]
+    if g_id in ["4", "5"]
+        gen["pmax"] = CF * gen["pmax"]
+    end
+end
+
 data_all = create_scopf_data(data, number_of_hours, g_series, l_series)
+
+# Manual setting of contingency
+# data_all["nw"]["2"]["convdc"]["1"]["status"] = 0
+# data_all["nw"]["3"]["convdc"]["2"]["status"] = 0
+# data_all["nw"]["4"]["convdc"]["3"]["status"] = 0
+# data_all["nw"]["5"]["convdc"]["4"]["status"] = 0
+# data_all["nw"]["6"]["convdc"]["5"]["status"] = 0
+# data_all["nw"]["7"]["convdc"]["6"]["status"] = 0
+# data_all["nw"]["8"]["convdc"]["7"]["status"] = 0
+# data_all["nw"]["9"]["convdc"]["8"]["status"] = 0
+# data_all["nw"]["10"]["convdc"]["9"]["status"] = 0
+# data_all["nw"]["11"]["convdc"]["10"]["status"] = 0
+
 
 # Tighten the bounds for dc voltage in the first stage networks
 # for (b,busdc) in  data_all["nw"]["1"]["busdc"]
@@ -91,13 +124,20 @@ data_all = create_scopf_data(data, number_of_hours, g_series, l_series)
 # end
 
 # N-1 
-# for idx = 1:10
-#     nw = idx + 1
+for idx = 1:10
+    nw = idx + 1
+    data_all["nw"]["$nw"]["convdc"]["$idx"]["status"] = 0
+    # for (b, busdc) in  data_all["nw"]["$nw"]["busdc"]
+    #     busdc["Vdcmax"] = 2
+    #     busdc["Vdcmin"] = 0.2
+    # end
+end
+
+# N-1 for both converters in the same station
+# for idx = 2:2:10
+#     nw = Int(idx/2) + 1
 #     data_all["nw"]["$nw"]["convdc"]["$idx"]["status"] = 0
-#     # for (b, busdc) in  data_all["nw"]["$nw"]["busdc"]
-#     #     busdc["Vdcmax"] = 2
-#     #     busdc["Vdcmin"] = 0.2
-#     # end
+#     data_all["nw"]["$nw"]["convdc"]["$(idx-1)"]["status"] = 0
 # end
 
 # for idx = 4:9
@@ -106,9 +146,19 @@ data_all = create_scopf_data(data, number_of_hours, g_series, l_series)
 # end
 
 for idx = 1:6
-    nw = idx + 1
+    nw = idx + 9
     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
 end
+
+# for idx = 4:9
+#     nw = idx - 2
+#     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
+# end
+
+# for idx = 1:6
+#     nw = idx + 1
+#     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
+# end
 
 # for nw in 1:number_of_hours * number_of_contingencies
 #     for (b, busdc) in  data_all["nw"]["$nw"]["busdc"]
@@ -133,9 +183,12 @@ pconv = zeros(number_of_hours * number_of_contingencies, length(result["solution
 qconv = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["convdc"]))
 pg = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["gen"]))
 qg = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["gen"]))
-# pd = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["load"]))
+pflex = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["load"]))
+pred = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["load"]))
+pcurt = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["load"]))
 branch_flows = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["branchdc"]))
 busdc_voltages = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["busdc"]))
+ac_branch_flows = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["branch"]))
 
 baseMVA = data_all["nw"]["1"]["baseMVA"]
 
@@ -152,14 +205,22 @@ for (n, network) in result["solution"]["nw"]
         pconv[parse(Int, n), parse(Int, c)] = conv["pdc"]*baseMVA
         qconv[parse(Int, n), parse(Int, c)] = conv["qconv"]*baseMVA
     end
-    # for (l, load) in network["load"]
-    #     pd[parse(Int, n), parse(Int, l)] = load["pflex"]
-    # end
     for (bdc, branchdc) in network["branchdc"]
         branch_flows[parse(Int, n), parse(Int, bdc)] = max(abs(branchdc["pf"]), abs(branchdc["pt"]))*baseMVA
     end
     for (bdc, busdc) in network["busdc"]
         busdc_voltages[parse(Int, n), parse(Int, bdc)] = busdc["vm"]
+    end
+    for (b,branch) in network["branch"]
+        ac_branch_flows[parse(Int, n), parse(Int, b)] = max(abs(branch["pf"]), abs(branch["pt"]))*baseMVA
+    end
+end
+
+for (n,network) in result["solution"]["nw"]
+    for (l,load) in network["load"]
+        pflex[parse(Int, n), parse(Int, l)] = load["pflex"]*baseMVA
+        pred[parse(Int, n), parse(Int, l)] = load["pred"]*baseMVA
+        pcurt[parse(Int, n), parse(Int, l)] = load["pcurt"]*baseMVA
     end
 end
 
@@ -210,7 +271,7 @@ for (n, network) in result["solution"]["nw"]
         p_con = result["solution"]["nw"][n]["convdc"][c]["pdc"]
 
         droop_u_diff[n_idx, c_idx] = u_con - u_ref
-        droop_p_diff[n_idx, c_idx] = (p_con - p_ref) * data_all["nw"]["1"]["baseMVA"]
+        droop_p_diff[n_idx, c_idx] = (p_con - p_ref)
     end
 end
 
@@ -242,10 +303,10 @@ k = 50
 max_d_p = (k*max_d_u)*baseMVA
 
 # Matrix of required voltages
-p_dc_ref_mat = repeat(p_dc_ref,10)
+p_dc_ref_mat = repeat(p_dc_ref,number_of_contingencies-1)
 p_dc_free_cont_mat = pconv[2:end,:]
 u_dc_ref = [busdc_voltages[1,1],busdc_voltages[1,1], busdc_voltages[1,2], busdc_voltages[1,2], busdc_voltages[1,3], busdc_voltages[1,3], busdc_voltages[1,4], busdc_voltages[1,4], busdc_voltages[1,5], busdc_voltages[1,5]]'
-U_dc_ref = repeat(u_dc_ref,10) #converter ref voltage
+U_dc_ref = repeat(u_dc_ref,number_of_contingencies-1) #converter ref voltage
 
 delta_P_required = (p_dc_free_cont_mat - p_dc_ref_mat) ./ baseMVA
 delta_U_required = delta_P_required ./ (k*baseMVA)
@@ -371,3 +432,24 @@ data_test_1["convdc"]["2"]["type_dc"] = 3
 
 # function dc_branch_diff(busdc_voltages)
 # end
+
+
+# pg
+# 17×5 Matrix{Float64}:
+#  715.532  651.098  769.631  1000.0    1000.0
+#  882.002  587.305  694.356   988.233   988.245
+#  882.002  587.305  694.356   988.233   988.245
+#  712.332  740.406  709.927   988.252   988.262
+#  712.332  740.406  709.927   988.252   988.262
+#  699.482  589.071  874.465   988.25    988.26
+#  699.482  589.071  874.465   988.25    988.26
+#  763.5    641.732  761.777   986.121   988.309
+#  763.5    641.732  761.777   986.121   988.309
+#  720.193  671.012  777.064   988.27    986.113
+#  774.59   642.488  753.003   988.23    986.112
+#  772.475  641.053  751.222   988.284   988.278
+#  764.741  648.238  750.163   988.297   988.304
+#  711.613  649.159  806.795   988.238   988.235
+#  758.667  641.179  764.209   988.277   988.315
+#  762.048  640.597  760.358   988.297   988.308
+#  762.048  640.597  760.358   988.297   988.308
