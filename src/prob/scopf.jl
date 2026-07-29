@@ -126,11 +126,11 @@ function first_stage_model!(pm, n)
             constraint_conv_firing_angle(pm, i; nw = n)
         end
         if haskey(pm.setting, "optimize_converter_droop") && pm.setting["optimize_converter_droop"] == true
-            if n > 1
-                for i in _PM.ids(pm, n, :convdc)
-                    constraint_droop_coefficient(pm, i; nw = n)
-                end
-            end
+            # if n > 1
+            #     for i in _PM.ids(pm, n, :convdc)
+            #         constraint_droop_coefficient(pm, i; nw = n)
+            #     end
+            # end
             if haskey(pm.setting, "dc_converter_passivity") && pm.setting["dc_converter_passivity"] == true
                 constraint_dc_converter_passivity(pm, i; nw = n)
             end
@@ -202,9 +202,9 @@ function second_stage_model!(pm, n)
 
 
     for i in _PM.ids(pm, n, :convdc)
-        # if contingencies[cont_id]["dcconv_id1"] == i || contingencies[cont_id]["dcconv_id2"] == i || contingencies[cont_id]["dcconv_id3"] == i
-        #     constraint_converter_contingencies(pm, i; nw = n)
-        # else
+        if contingencies[cont_id]["dcconv_id1"] == i || contingencies[cont_id]["dcconv_id2"] == i || contingencies[cont_id]["dcconv_id3"] == i
+            constraint_converter_contingencies(pm, i; nw = n)
+        else
             constraint_converter_losses(pm, i; nw = n)
             constraint_converter_current(pm, i; nw = n)
             constraint_conv_transformer(pm, i; nw = n)
@@ -213,7 +213,7 @@ function second_stage_model!(pm, n)
             if _PM.ref(pm, n, :convdc, i, "islcc") == 1
                 constraint_conv_firing_angle(pm, i; nw = n)
             end
-            # constraint_dc_droop_control(pm, i, nw = n; scopf = true)
-        # end
+            constraint_dc_droop_control(pm, i, nw = n; scopf = true)
+        end
     end
 end

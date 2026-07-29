@@ -57,9 +57,9 @@ end
 
 for (g, gen) in data["gen"]
     if g in ["4", "5"]
-        gen["gen_slack"] = 0.02
+        gen["gen_slack"] = 0.5
     else
-        gen["gen_slack"] = 1
+        gen["gen_slack"] = 0.5
     end
 end
 
@@ -82,27 +82,33 @@ s = Dict("conv_losses_mp" => true, "optimize_converter_droop" => true, "objectiv
 # Random generation and demand time series, later replace with something more representative
 # g_series = [1.0 0.7 0.75 0.78 0.85]
 # l_series = [1.0 0.7 0.75 0.78 0.85]
-g_series = [1.0 0.7 0.75]
-l_series = [1.0 0.7 0.75]
+g_series = [0.42 0.45 0.48 0.50 0.53 0.57 0.61 0.66 0.70 0.74 0.78 0.82 0.85 0.88 0.86 0.83 0.79 0.75 0.71 0.67 0.62 0.57 0.52 0.47]
+l_series = [1.0 0.7 0.75 0.78 0.85 0.88 0.9 1.0 1.12 1.25 1.2 1.08 0.99 0.92 0.8 0.73 0.8 0.9 1.03 1.2 1.11 0.99 0.8 0.69]
 # Select the nunmber of hours for which you want to run the optimisation
-number_of_hours = 1
+number_of_hours = 24
 # get the number of contingencies from the data dictionary
 number_of_contingencies = length(data["contingencies"])
 
 # Resistance parametrisation
-alpha = 1
-for (b, branch) in data["branchdc"]
-    branch["r"] = alpha * branch["r"]
-end
+# alpha = 1
+# for (b, branch) in data["branchdc"]
+#     branch["r"] = alpha * branch["r"]
+# end
 
-CF = 0.5
-for (g_id, gen) in data["gen"]
-    if g_id in ["4", "5"]
-        gen["pmax"] = CF * gen["pmax"]
-    end
-end
+# CF = 0.5
+# for (g_id, gen) in data["gen"]
+#     if g_id in ["4", "5"]
+#         gen["pmax"] = CF * gen["pmax"]
+#     end
+# end
 
 data_all = create_scopf_data(data, number_of_hours, g_series, l_series)
+
+for nw in 2:number_of_contingencies
+    for (branchdc_id, branchdc) in data_all["nw"]["$nw"]["branchdc"]
+        branchdc["rateA"] = 40
+    end
+end
 
 # Manual setting of contingency
 # data_all["nw"]["2"]["convdc"]["1"]["status"] = 0
@@ -124,32 +130,35 @@ data_all = create_scopf_data(data, number_of_hours, g_series, l_series)
 # end
 
 # N-1 
-for idx = 1:10
-    nw = idx + 1
-    data_all["nw"]["$nw"]["convdc"]["$idx"]["status"] = 0
-    # for (b, busdc) in  data_all["nw"]["$nw"]["busdc"]
-    #     busdc["Vdcmax"] = 2
-    #     busdc["Vdcmin"] = 0.2
-    # end
-end
-
-# N-1 for both converters in the same station
-# for idx = 2:2:10
-#     nw = Int(idx/2) + 1
+# For converters
+# for idx = 1:10
+#     nw = idx + 1
 #     data_all["nw"]["$nw"]["convdc"]["$idx"]["status"] = 0
-#     data_all["nw"]["$nw"]["convdc"]["$(idx-1)"]["status"] = 0
+#     # for (b, busdc) in  data_all["nw"]["$nw"]["busdc"]
+#     #     busdc["Vdcmax"] = 2
+#     #     busdc["Vdcmin"] = 0.2
+#     # end
 # end
 
+# # N-1 for both converters in the same station
+# # for idx = 2:2:10
+# #     nw = Int(idx/2) + 1
+# #     data_all["nw"]["$nw"]["convdc"]["$idx"]["status"] = 0
+# #     data_all["nw"]["$nw"]["convdc"]["$(idx-1)"]["status"] = 0
+# # end
+
+# # To add branches to converter
 # for idx = 4:9
 #     nw = idx + 8
 #     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
 # end
 
-for idx = 1:6
-    nw = idx + 9
-    data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
-end
+# for idx = 1:6
+#     nw = idx + 9
+#     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
+# end
 
+# For only dc branches
 # for idx = 4:9
 #     nw = idx - 2
 #     data_all["nw"]["$nw"]["branchdc"]["$idx"]["status"] = 0
@@ -174,11 +183,18 @@ end
 # end
 
 
+
 # Solve OPF
 result = solve_scopf(data_all, PowerModels.ACPPowerModel, nlsolver; multinetwork=true, setting=s)
 
 ############ Processing the results ###################
-k_droop = zeros(number_of_hours, length(result["solution"]["nw"]["1"]["convdc"]))
+# k_droop = zeros(number_of_hours, length(result["solution"]["nw"]["1"]["convdc"]))
+# k_droop = zeros(length(result["solution"]["nw"]["1"]["convdc"]))
+# for (c, conv) in result["solution"]["nw"]["1"]["convdc"]
+#     k_droop[parse(Int, c)] = conv["k_droop"]
+# end
+
+k_droop = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["convdc"]))
 pconv = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["convdc"]))
 qconv = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["convdc"]))
 pg = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["gen"]))
@@ -188,7 +204,7 @@ pred = zeros(number_of_hours * number_of_contingencies, length(result["solution"
 pcurt = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["load"]))
 branch_flows = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["branchdc"]))
 busdc_voltages = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["busdc"]))
-ac_branch_flows = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["branch"]))
+# ac_branch_flows = zeros(number_of_hours * number_of_contingencies, length(result["solution"]["nw"]["1"]["branch"]))
 
 baseMVA = data_all["nw"]["1"]["baseMVA"]
 
@@ -211,9 +227,9 @@ for (n, network) in result["solution"]["nw"]
     for (bdc, busdc) in network["busdc"]
         busdc_voltages[parse(Int, n), parse(Int, bdc)] = busdc["vm"]
     end
-    for (b,branch) in network["branch"]
-        ac_branch_flows[parse(Int, n), parse(Int, b)] = max(abs(branch["pf"]), abs(branch["pt"]))*baseMVA
-    end
+    # for (b,branch) in network["branch"]
+    #     ac_branch_flows[parse(Int, n), parse(Int, b)] = max(abs(branch["pf"]), abs(branch["pt"]))*baseMVA
+    # end
 end
 
 for (n,network) in result["solution"]["nw"]
@@ -223,6 +239,168 @@ for (n,network) in result["solution"]["nw"]
         pcurt[parse(Int, n), parse(Int, l)] = load["pcurt"]*baseMVA
     end
 end
+
+# RES curtailement calculation
+owf = [4,5]
+Pmax = 2000
+T = number_of_hours
+K = number_of_contingencies
+
+curt = zeros(number_of_hours, length(owf))
+available = zeros(number_of_hours, length(owf))
+
+for t in 1:T
+    base_row = (t-1)*K + 1
+    for (i, g) in enumerate(owf)
+        p_g = pg[base_row, g]
+        p_av = Pmax * g_series[t]
+
+        curt[t, i] = max(0, p_av - p_g)
+        available[t, i] = p_av
+    end
+end
+
+curt_per_hour = sum(curt, dims=2)
+total_curt = sum(curt_per_hour)
+total_avail = sum(available)
+
+total_curt_perc = total_curt / total_avail * 100
+
+# ENS
+ens_base_hourly = zeros(T)
+ens_all = zeros(T, K)
+
+for t in 1:T
+    for k in 1:K
+        row = (t-1)*K + k
+        ens_all[t, k] = sum(pred[row,:]) + sum(pcurt[row,:])
+    end
+    ens_base_hourly[t] = ens_all[t, 1]
+end
+
+total_ens_base = sum(ens_base_hourly)
+max_cont_ens = maximum(ens_all)
+non_zero_ens = count(x -> x > 1e-6, ens_all)
+
+# Converters Pdc plot
+n_units = size(pconv,2)
+n_stations = div(n_units, 2)
+
+pconv_station = zeros(size(pconv,1), n_stations)
+
+for s in 1:n_stations
+    c1 = 2s -1
+    c2 = 2s
+    pconv_station[:, s] = pconv[:, c1] + pconv[:, c2]
+end
+
+p = Plots.plot(
+    xlabel = "Hour ID",
+    ylabel = "HVDC converter Pdc in MW",
+    legend = :outerright,
+    grid = true,
+    fontfamily = "Computer Modern"
+)
+
+# for s in 1:n_stations
+#     x_vals = Float64[]
+#     y_vals = Float64[]
+#     for t in 1:T
+#         for k in 1:K
+#             row = (t-1)*K + k
+#             x = t + 0.06*(k - (K+1) /2)
+#             push!(x_vals, x)
+#             push!(y_vals, pconv_station[row, s])
+#         end
+#     end
+#     Plots.scatter!(
+#         p,
+#         x_vals,
+#         y_vals,
+#         label = "Conv $s",
+#         markersize = 3.5,
+#     )
+# end
+
+for s in 1:n_units
+    x_vals = Float64[]
+    y_vals = Float64[]
+    for t in 1:T
+        for k in 1:K
+            row = (t-1)*K + k
+            x = t + 0.055*(k - (K+1) /2)
+            push!(x_vals, x)
+            push!(y_vals, pconv[row, s])
+        end
+    end
+    Plots.scatter!(
+        p,
+        x_vals,
+        y_vals,
+        label = "Conv $s",
+        markersize = 3.5,
+        marketstrokewidth = 0.3,
+        fontfamily = "Computer Modern"
+    )
+end
+
+
+Plots.xticks!(1:T)
+
+
+Plots.savefig(p, "/Users/rgallo/Desktop/Figures/scopf_prosecco_pconv_case3.png")
+
+# Gen plot
+
+p2 = Plots.plot(
+    xlabel = "Hour ID",
+    ylabel = "Generators Pg in MW",
+    legend = :outerright,
+    grid = true,
+    fontfamily = "Computer Modern"
+)
+
+n_gens = size(pg,2)
+
+for s in 1:n_gens
+    x_vals = Float64[]
+    y_vals = Float64[]
+    for t in 1:T
+        for k in 1:K
+            row = (t-1)*K + k
+            x = t + 0.055*(k - (K+1) /2)
+            push!(x_vals, x)
+            push!(y_vals, pg[row, s])
+        end
+    end
+    Plots.scatter!(
+        p2,
+        x_vals,
+        y_vals,
+        label = "Gen $s",
+        markersize = 3.5,
+        marketstrokewidth = 0.3,
+        fontfamily = "Computer Modern"
+    )
+end
+
+Plots.xticks!(1:T)
+
+using JSON3
+using JLD2
+
+filename = "/Users/rgallo/Desktop/scopf_result_case4.jld2"
+@save filename result
+# open(filename, "w") do io
+#     JSON3.write(io, result)
+# end
+
+Plots.scatter(pconv[:, 1])
+for idx in 2:length(result["solution"]["nw"]["1"]["convdc"])
+    Plots.scatter!(pconv[:, idx])
+end
+Plots.xlabel!("contingency ID")
+Plots.ylabel!("Pdc in MW")
 
 ### Computing voltage differences
 
@@ -453,3 +631,7 @@ data_test_1["convdc"]["2"]["type_dc"] = 3
 #  758.667  641.179  764.209   988.277   988.315
 #  762.048  640.597  760.358   988.297   988.308
 #  762.048  640.597  760.358   988.297   988.308
+
+
+
+pconv
