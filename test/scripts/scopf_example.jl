@@ -3,14 +3,14 @@
 using PowerModelsACDC
 import PowerModels
 import Ipopt
-import Plots
+# import Plots
 
 ## Use first one for MA27, check the local path for your HSL library
 ipopt = optimizer_with_attributes(Ipopt.Optimizer)
 
 
 ###### Load your test file
-case_name = "case5"
+case_name = "case39"
 kmax = 100
 dc_converter_passivity = true
 #######################
@@ -70,9 +70,9 @@ for (c, conv) in result["solution"]["nw"]["1"]["convdc"]
     k_droop[parse(Int, c)] = conv["k_droop"]
 end
 
-Plots.scatter(k_droop)
-Plots.xlabel!("Converter ID")
-Plots.ylabel!("k in MW / kV")
+# Plots.scatter(k_droop)
+# Plots.xlabel!("Converter ID")
+# Plots.ylabel!("k in MW / kV")
 
 ########## PRINT Converter dc side & generator setpoints for all hours and contingencies
 
@@ -88,19 +88,19 @@ for (n, network) in result["solution"]["nw"]
     end
 end
 
-Plots.scatter(pg[:, 1])
-for idx in 2:length(result["solution"]["nw"]["1"]["gen"])
-    Plots.scatter!(pg[:, idx])
-end
-Plots.xlabel!("contingency ID")
-Plots.ylabel!("Pg in MW")
+# Plots.scatter(pg[:, 1])
+# for idx in 2:length(result["solution"]["nw"]["1"]["gen"])
+#     Plots.scatter!(pg[:, idx])
+# end
+# Plots.xlabel!("contingency ID")
+# Plots.ylabel!("Pg in MW")
 
-Plots.scatter(pconv[:, 1])
-for idx in 2:length(result["solution"]["nw"]["1"]["convdc"])
-    Plots.scatter!(pconv[:, idx])
-end
-Plots.xlabel!("contingency ID")
-Plots.ylabel!("Pdc in MW")
+# Plots.scatter(pconv[:, 1])
+# for idx in 2:length(result["solution"]["nw"]["1"]["convdc"])
+#     Plots.scatter!(pconv[:, idx])
+# end
+# Plots.xlabel!("contingency ID")
+# Plots.ylabel!("Pdc in MW")
 
 
 for (n, network) in result["solution"]["nw"]
