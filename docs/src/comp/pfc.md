@@ -23,3 +23,24 @@ Optimization variables representing the PFC behaviour.
 | duty cycle | $d$ | -   | IVR  | Duty cycle of the PFC |
 | internal capacitor voltage | $e$ | kV | Internal capacitor voltage of the PFC |
 
+## Constraints
+
+### Duty cycle limits
+
+The duty cycle is bounded by the input parameters:
+
+```math
+\underline{D_{pfc}}
+\leq d_{pfc}
+\leq \overline{D_{pfc}}.
+```
+
+### Internal capacitor voltage limits
+
+The internal capacitor voltage is bounded by the input parameters:
+
+```math
+\underline{E_{pfc}}
+\leq e_{pfc}
+\leq \overline{E_{pfc}}.
+```
