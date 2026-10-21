@@ -64,7 +64,6 @@ The voltage difference between terminal 1 and terminal 3 is given by
 ```math
 U^{dc}_{t_1} - U^{dc}_{t_3} + (1-d_{pfc})\cdot e_{pfc} = 0
 ```
-
 ### Energy balance constraints
 
 The PFC is modelled as a lossless device, the resulting equation linking both currents is determined by:
@@ -72,9 +71,9 @@ The PFC is modelled as a lossless device, the resulting equation linking both cu
 ```math
 e_{pfc}
 \left[
-(1-d_{pfc}) \cdot I_{p,t_3t_1}
+(1-d_{pfc}) \cdot I_{pfc,t_3t_1}
 -
-d_{pfc} \cdot I_{p,t_2t_1}
+d_{pfc} \cdot I_{pfc,t_2t_1}
 \right]
 = 0
 ```
@@ -85,7 +84,7 @@ The currents associated with opposite directions of each terminal pair are equal
 
 ```math
 \begin{aligned}
-I_{p,t_1t_2} + I_{p,t_2t_1} &= 0 \\
-I_{p,t_1t_3} + I_{p,t_3t_1} &= 0
+I_{pfc,t_1t_2} + I_{pfc,t_2t_1} &= 0 \\
+I_{pfc,t_1t_3} + I_{pfc,t_3t_1} &= 0
 \end{aligned}
 ```
