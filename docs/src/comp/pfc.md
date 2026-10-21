@@ -1,27 +1,33 @@
 # Power Flow Controller (DC grid)
 
+Power flow controllers (PFCs) control power flows in a DC grid by introducing controllable voltage differences between a common terminal and two output terminals. The model represents a three-terminal device with a duty cycle and an internal capacitor voltage.
+
+The PFC model is implemented for the OPF IVR formulation.
+
 ## Parameters
 
-Set of parameters used to model power flow controlling devices as defined in the input data
+Set of parameters used to model PFC devices as defined in the input data.
 
-| name | symb. | unit | type | default | definition |
-|------|-------|------|------|---------|------------|
-| index | $pfc$ | -   | Int  | -       | unique index of the PFC device |
-| terminal1_bus | $t1$ | -   | Int  | -       | unique index of the bus root terminal |
-| terminal2_bus | $t2$ | -   | Int  | -       | unique index of the bus output 1 terminal |
-| terminal3_bus | $t3$ | -   | Int  | -       | unique index of the bus output 2 terminal |
-| terminal1_bus | $t1$ | -   | Int  | -       | unique index of the bus input terminal |
-| c_voltage_max | $c_max$ | kV   | Real  | -       | PFC internal capacitor maximum voltage |
-| c_voltage_min | $c_min$ | kV   | Real  | -       | PFC internal capacitor minimum voltage |
+| name           | symb.             | unit | type | default | definition |
+|----------------|-------------------|------|------|---------|------------|
+| index          | $pfc$               | -    | Int  | -       | Unique index of the PFC device |
+| terminal1_bus  | $t_1$             | -    | Int  | -       | Unique index of the DC bus connected to the common terminal 1 |
+| terminal2_bus  | $t_2$             | -    | Int  | -       | Unique index of the DC bus connected to output terminal 2 |
+| terminal3_bus  | $t_3$             | -    | Int  | -       | Unique index of the DC bus connected to output terminal 3 |
+| duty_cycle_min | $\underline{D_{pfc}}$ | -    | Real | 0.01    | Minimum duty cycle |
+| duty_cycle_max | $\overline{D_{pfc}}$  | -    | Real | 0.99    | Maximum duty cycle |
+| c_voltage_min  | $\underline{E_{pfc}}$ | kV   | Real | -       | Minimum internal capacitor voltage |
+| c_voltage_max  | $\overline{E_{pfc}}$  | kV   | Real | -       | Maximum internal capacitor voltage |
 
 ## Variables
 
-Optimization variables representing the PFC behaviour.
+Optimisation variables representing PFC behaviour.
 
-| name | symb. | unit | formulation | definition |
-|------|-------|------|-------------|------------|
-| duty cycle | $d$ | -   | IVR  | Duty cycle of the PFC |
-| internal capacitor voltage | $e$ | kV | Internal capacitor voltage of the PFC |
+| name       | symb.       | unit | formulation | definition |
+|------------|-------------|------|-------------|------------|
+| duty_cycle | $d_{pfc}$       | -    | IVR | Duty cycle of the PFC |
+| c_voltage  | $e_{pfc}$       | p.u. | IVR | Internal capacitor voltage of the PFC |
+| ipfc_dc    | $I_{pfc,a,b}$ | p.u. | IVR | PFC current associated with terminal pair $(a,b)$ |
 
 ## Constraints
 
@@ -32,7 +38,7 @@ The duty cycle is bounded by the input parameters:
 ```math
 \underline{D_{pfc}}
 \leq d_{pfc}
-\leq \overline{D_{pfc}}.
+\leq \overline{D_{pfc}}
 ```
 
 ### Internal capacitor voltage limits
@@ -42,5 +48,44 @@ The internal capacitor voltage is bounded by the input parameters:
 ```math
 \underline{E_{pfc}}
 \leq e_{pfc}
-\leq \overline{E_{pfc}}.
+\leq \overline{E_{pfc}}
+```
+
+### Terminal voltage relationships
+
+The voltage difference between terminal 1 and terminal 2 is determined by the duty cycle and capacitor voltage:
+
+```math
+U^{dc}_{t_1} - U^{dc}_{t_2} - d_{pfc} \cdot e_{pfc} = 0
+```
+
+The voltage difference between terminal 1 and terminal 3 is given by
+
+```math
+U^{dc}_{t_1} - U^{dc}_{t_3} + (1-d_{pfc})\cdot e_{pfc} = 0
+```
+
+### Energy balance constraints
+
+The PFC is modelled as a lossless device, the resulting equation linking both currents is determined by:
+
+```math
+e_{pfc}
+\left[
+(1-d_{pfc}) \cdot I_{p,t_3t_1}
+-
+d_{pfc} \cdot I_{p,t_2t_1}
+\right]
+= 0
+```
+
+### Current balance constraints
+
+The currents associated with opposite directions of each terminal pair are equal in magnitude and opposite in sign:
+
+```math
+\begin{aligned}
+I_{p,t_1t_2} + I_{p,t_2t_1} &= 0 \\
+I_{p,t_1t_3} + I_{p,t_3t_1} &= 0
+\end{aligned}
 ```
