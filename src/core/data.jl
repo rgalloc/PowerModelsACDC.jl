@@ -315,8 +315,6 @@ end
 function to_pu_single_network_pfc!(data)
     MVAbase = data["baseMVA"]
     for (i, pfc) in data["pfc"]
-        scale_pfc_data!(pfc, MVAbase)
-
         busdc_id = pfc["terminal1_bus"]
         kVbase = data["busdc"][string(busdc_id)]["basekVdc"]
         set_pfc_pu_volt!(pfc, kVbase)
@@ -325,8 +323,8 @@ end
 
 function fix_data_single_network_pfc!(data) # Maybe not needed
     for (i, pfc) in data["pfc"]
-        pfc["duty_cycle_min"] = 0.01
-        pfc["duty_cycle_max"] = 0.99
+        pfc["duty_cycle_min"] = 0.00
+        pfc["duty_cycle_max"] = 1.00
     end
 end
 
@@ -335,8 +333,6 @@ function to_pu_multi_network_pfc!(data)
     for (n, network) in data["nw"]
         MVAbase = network["baseMVA"]
         for (i, pfc) in network[n]["pfc"]
-            scale_pfc_data!(pfc, MVAbase)
-
             busdc_id = pfc["terminal1_bus"]
             kVbase = network[n]["busdc"][string(busdc_id)]["basekVdc"]
             set_pfc_pu_volt!(pfc, kVbase)
@@ -347,16 +343,10 @@ end
 function fix_data_multi_network_pfc!(data) # Modify similar to single network pfc
     for (n, network) in data["nw"]
         for (i, pfc) in network[n]data["pfc"]
-            pfc["duty_cycle_min"] = 0.01
-            pfc["duty_cycle_max"] = 0.99
+            pfc["duty_cycle_min"] = 0.00
+            pfc["duty_cycle_max"] = 1.00
         end
     end
-end
-
-function scale_pfc_data!(pfc, MVAbase) # pu conversion only needed to capacitor voltage and power limits
-    rescale_power = x -> x/MVAbase
-    _PM._apply_func!(pfc, "pfc_current_min", rescale_power)
-    _PM._apply_func!(pfc, "pfc_current_max", rescale_power)
 end
 
 function set_pfc_pu_volt!(pfc, kVbase)

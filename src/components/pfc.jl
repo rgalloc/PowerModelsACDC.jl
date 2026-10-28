@@ -38,18 +38,10 @@ end
 
 "variable: pfc_current[i] for PFCs"
 function variable_pfc_current(pm::_PM.AbstractIVRModel; nw::Int=_PM.nw_id_default, bounded::Bool=true, report::Bool=true)
-    #vpu = 1;
     ipfc_dc = _PM.var(pm, nw)[:ipfc_dc] = JuMP.@variable(pm.model,
-        [(l,i,j) in _PM.ref(pm, nw, :arcs_pfc)], base_name="$(nw)_ipfc_dc",
-        start = 0.5 # To avoid division by zero, maybe change later TODO
+        [(l,i,j) in _PM.ref(pm, nw, :arcs_pfc)], base_name="$(nw)_ipfc_dc"
     )
-    if bounded
-        for arc in _PM.ref(pm, nw, :arcs_pfc)
-            l,i,j = arc
-            JuMP.set_lower_bound(ipfc_dc[arc], _PM.ref(pm, nw, :pfc, l)["pfc_current_min"])
-            JuMP.set_upper_bound(ipfc_dc[arc], _PM.ref(pm, nw, :pfc, l)["pfc_current_max"])
-        end
-    end
+
     report && _PM.sol_component_value_edge(pm, nw, :pfc, :pfc_current_12_fr, :pfc_current_12_to, _PM.ref(pm, nw, :arcs_from_12_pfc), _PM.ref(pm, nw, :arcs_to_12_pfc), ipfc_dc)
     report && _PM.sol_component_value_edge(pm, nw, :pfc, :pfc_current_13_fr, :pfc_current_13_to, _PM.ref(pm, nw, :arcs_from_13_pfc), _PM.ref(pm, nw, :arcs_to_13_pfc), ipfc_dc)
 end
@@ -140,7 +132,6 @@ function constraint_pfc_current_balance(pm, nw, i, arcs_pfc, pfc_terminal_1, pfc
     I21 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_2,pfc_terminal_1))
     I31 = _PM.var(pm, nw, :ipfc_dc, (i,pfc_terminal_3,pfc_terminal_1))
 
-    # JuMP.@constraint(pm.model, I12 + I13 + I21 + I31 == 0)
     JuMP.@constraint(pm.model, I12 + I21 == 0)
     JuMP.@constraint(pm.model, I13 + I31 == 0)
 end
