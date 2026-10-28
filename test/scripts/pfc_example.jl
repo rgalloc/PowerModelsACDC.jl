@@ -7,8 +7,8 @@ import Ipopt
 # ------------------------------------------------------------
 
 # Five-bus AC/DC network, with and without a DC PFC
-file = pkgdir(PowerModelsACDC, "test", "data", "PFC", "case5_acdc.m")
-file_pfc = pkgdir(PowerModelsACDC, "test", "data", "PFC", "case5_acdc_pfc.m")
+file = pkgdir(PowerModelsACDC, "test", "data", "case5_acdc.m")
+file_pfc = pkgdir(PowerModelsACDC, "test", "data", "case5_acdc_pfc.m")
 
 data = parse_file(file)
 data_pfc = parse_file(file_pfc)

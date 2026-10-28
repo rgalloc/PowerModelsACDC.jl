@@ -1,6 +1,6 @@
 @testset "Power Flow Controller" begin
-    data = parse_file(pkgdir(PowerModelsACDC, "test", "data", "pfc", "case5_acdc.m"))
-    data_pfc = parse_file(pkgdir(PowerModelsACDC, "test", "data", "pfc", "case5_acdc_pfc.m"))
+    data = parse_file(pkgdir(PowerModelsACDC, "test", "data", "case5_acdc.m"))
+    data_pfc = parse_file(pkgdir(PowerModelsACDC, "test", "data", "case5_acdc_pfc.m"))
     s = Dict("conv_losses_mp" => true)
     @testset "IVRPowerModel - Uncongested" begin
         result = solve_acdcopf_iv(data, PowerModels.IVRPowerModel, ipopt; setting=s)
