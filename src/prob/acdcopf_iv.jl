@@ -198,6 +198,7 @@ function mp_build_acdcopf_iv(pm::_PM.AbstractIVRModel)
         variable_load_current(pm; nw = n)
         variable_pst(pm; nw = n)
         variable_sssc(pm; nw = n)
+        variable_pfc(pm; nw = n)
 
         # variable_dcbranch_temperature(pm; nw = n)
 
@@ -251,6 +252,12 @@ function mp_build_acdcopf_iv(pm::_PM.AbstractIVRModel)
             if haskey(_PM.ref(pm, n, :branchdc, i), "dcr") && _PM.ref(pm, n, :branchdc, i)["dcr"] == 1
                constraint_dynamic_cable_rating(pm, i; nw = n)
             end
+        end
+        for i in _PM.ids(pm, n, :pfc)
+            constraint_duty_cycle_pfc(pm, i; nw = n)
+            constraint_pfc_current_balance(pm, i; nw = n)
+            constraint_voltage_terminal_2_pfc(pm, i; nw = n)
+            constraint_voltage_terminal_3_pfc(pm, i; nw = n)
         end
         for i in _PM.ids(pm, n, :convdc)
             constraint_converter_limits(pm, i; nw = n)
